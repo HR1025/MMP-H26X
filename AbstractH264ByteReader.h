@@ -20,8 +20,8 @@ class AbstractH264ByteReader
 public:
     using ptr = std::shared_ptr<AbstractH264ByteReader>;
 public:
-    AbstractH264ByteReader();
-    virtual ~AbstractH264ByteReader();
+    AbstractH264ByteReader() = default;
+    virtual ~AbstractH264ByteReader() = default;
 public:
     /**
      * @brief     read raw data from the bytes stream

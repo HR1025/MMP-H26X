@@ -33,6 +33,7 @@ namespace Codec
 
 H264Deserialize::H264Deserialize()
 {
+    _contex = std::make_shared<H264ContextSyntax>();
 }
 
 H264Deserialize::~H264Deserialize()
@@ -40,16 +41,51 @@ H264Deserialize::~H264Deserialize()
 
 }
 
-bool H264Deserialize::DeserializeNalSyntax(H264BinaryReader::ptr br, H264NalSyntax::ptr nal, uint64_t NumBytesInNALuint)
+bool H264Deserialize::DeserializeByteStreamNalUnit(H264BinaryReader::ptr br, H264NalSyntax::ptr nal)
+{
+    // See also : ISO 14496/10(2020) - B.1.1 Byte stream NAL unit syntax
+    try
+    {
+        uint32_t next_24_bits = 0;
+        br->U(24, next_24_bits, true);
+        while (next_24_bits != 0x000001)
+        {
+            br->Skip(8);
+            br->U(24, next_24_bits, true);
+        }
+        br->Skip(24); // start_code_prefix_one_3bytes /* equal to 0x000001 */
+        if (!DeserializeNalSyntax(br, nal))
+        {
+            return false;
+        }
+        while (br->more_data_in_byte_stream())
+        {
+            br->U(24, next_24_bits, true);
+            if (next_24_bits != 0x000001)
+            {
+                br->Skip(8);
+            }
+        }
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
+bool H264Deserialize::DeserializeNalSyntax(H264BinaryReader::ptr br, H264NalSyntax::ptr nal)
 {
     // See also : ISO 14496/10(2020) - 7.3.1 NAL unit syntax
     try
     {
+        uint8_t  forbidden_zero_bit = 0;
         int64_t NumBytesInRBSP = 0;
         int64_t nalUnitHeaderBytes = 1;
-        br->U(1, nal->forbidden_zero_bit);
+        br->U(1, forbidden_zero_bit);
+        MPP_H264_SYNTAXT_STRICT_CHECK(forbidden_zero_bit == 0, "[nal] forbidden_zero_bit should be 0", return false);
         br->U(2, nal->nal_ref_idc);
-        br->U(2, nal->nal_unit_type);
+        br->U(5, nal->nal_unit_type);
         if (nal->nal_unit_type == H264NaluType::MMP_H264_NALU_TYPE_PREFIX || nal->nal_unit_type == H264NaluType::MMP_H264_NALU_TYPE_SLC_EXT ||
             nal->nal_unit_type == H264NaluType::MMP_H264_NALU_TYPE_VDRD
         )
@@ -90,24 +126,7 @@ bool H264Deserialize::DeserializeNalSyntax(H264BinaryReader::ptr br, H264NalSynt
                 nalUnitHeaderBytes += 3;
             }
         }
-        for (int i=nalUnitHeaderBytes; i<NumBytesInNALuint; i++)
-        {
-            
-            if (i+2 < NumBytesInNALuint)
-            {
-                uint32_t next_24_bits = 0;
-                br->U(24, next_24_bits, true);
-                if (next_24_bits == 0x000003)
-                {
-                    // TODO
-                }
-                else
-                {
-                    // TODO
-                }
-            }
-        }
-
+        // TODO
         return true;
     }
     catch (...)

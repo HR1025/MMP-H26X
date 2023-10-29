@@ -18,8 +18,6 @@ namespace Mmp
 namespace Codec
 {
 
-#define MMP_H264_DEBUG_MODE
-
 #ifdef MMP_H264_DEBUG_MODE
 #define MPP_H264_SYNTAXT_STRICT_CHECK(cond, msg, exp)               if (!(cond))\
                                                                     {\
@@ -35,11 +33,11 @@ namespace Codec
 #else
 #define MPP_H264_SYNTAXT_STRICT_CHECK(cond, msg, exp)               if (!(cond))\
                                                                     {\
-                                                                        exp;
+                                                                        exp;\
                                                                     }
 #define MPP_H264_SYNTAXT_NORMAL_CHECK(cond, msg, exp)               if (!(cond))\
                                                                     {\
-                                                                        exp;
+                                                                        exp;\
                                                                     }
 #endif /* MMP_H264_DEBUG_MODE */
 

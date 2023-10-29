@@ -28,7 +28,11 @@ public:
     H264Deserialize();
     ~H264Deserialize();
 public:
-    bool DeserializeNalSyntax(H264BinaryReader::ptr br, H264NalSyntax::ptr nal, uint64_t NumBytesInNALuint);
+    /**
+     * @note for H264 Annex B type, common in network stream
+     */
+    bool DeserializeByteStreamNalUnit(H264BinaryReader::ptr br, H264NalSyntax::ptr nal);
+    bool DeserializeNalSyntax(H264BinaryReader::ptr br, H264NalSyntax::ptr nal);
     bool DeserializeHrdSyntax(H264BinaryReader::ptr br, H264HrdSyntax::ptr hrd);
     bool DeserializeVuiSyntax(H264BinaryReader::ptr br, H264VuiSyntax::ptr vui);
     bool DeserializeSeiSyntax(H264BinaryReader::ptr br, H264VuiSyntax::ptr vui, H264SeiSyntax::ptr sei);

@@ -6,6 +6,8 @@
 #include <stdexcept>
 #include <string>
 
+#include "H264Ultis.h"
+
 namespace Mmp
 {
 namespace Codec
@@ -46,7 +48,7 @@ static uint8_t kRightAndLookUp[8] = {0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE, 0
 
 H264BinaryReader::H264BinaryReader(AbstractH264ByteReader::ptr reader)
 {
-    _curBitPos = 0;
+    _curBitPos = 8;
     _curValue = 0;
     _reader = reader;
 }
@@ -85,27 +87,42 @@ void H264BinaryReader::SE(int32_t& value)
 }
 
 #define MMP_U_OPERATION(bits, value)            value = 0;\
-                                                ReadOneByte();\
                                                 bool firstFlag = false;\
                                                 do\
                                                 {\
-                                                    size_t readBits = bits <= _curBitPos % 8 ? bits : _curBitPos % 8;\
+                                                    ReadOneByteAuto();\
+                                                    size_t readBits = bits <= (8 - _curBitPos)? bits : (8 - _curBitPos);\
                                                     bits = bits - readBits;\
-                                                    _curBitPos = _curBitPos + bits;\
-                                                    value <<= bits;\
-                                                    if (readBits < 8 && firstFlag)\
+                                                    value <<= readBits;\
+                                                    if (readBits < 8 && !firstFlag)\
                                                     {\
-                                                        value |= _curValue & kLeftAndLookUp[readBits] >> (7 - _curBitPos % 8);\
+                                                        value |= (_curValue & kLeftAndLookUp[_curBitPos]) >> (8 - _curBitPos - readBits);\
                                                     }\
                                                     else if (readBits < 8)\
                                                     {\
-                                                        value |= _curValue & kRightAndLookUp[readBits] >> (7 - _curBitPos % 8);\
+                                                        value |= (_curValue & kRightAndLookUp[_curBitPos]) >> (8 - _curBitPos - readBits);\
                                                     }\
-                                                    ReadOneByte();\
+                                                    else\
+                                                    {\
+                                                        value |= _curValue;\
+                                                    }\
+                                                    _curBitPos = _curBitPos + readBits;\
                                                     firstFlag = true;\
                                                 } while (bits != 0);
 
+#define MMP_U_PRED_OPERATION(bits, value)       uint8_t curBitPos = _curBitPos;\
+                                                size_t curPosByte = curBitPos == 8 ? _reader->Tell() : _reader->Tell() - 1;\
+                                                MMP_U_OPERATION(bits, value);\
+                                                _reader->Seek(curPosByte);\
+                                                if (curBitPos != 8)\
+                                                {\
+                                                    ReadOneByteAuto(true);\
+                                                }\
+                                                _curBitPos = curBitPos;
+
 #define MMP_I_OPERATION(bits, value)            MMP_U_OPERATION(bits, value)
+
+#define MMP_I_PRED_OPERATION(bits, value)       MMP_U_PRED_OPERATION(bits, value)
 
 void H264BinaryReader::U(size_t bits)
 {
@@ -133,8 +150,9 @@ void H264BinaryReader::U(size_t bits, uint32_t& value, bool probe)
     }
     else
     {
-        assert(false);
+        MMP_U_PRED_OPERATION(bits, value);
     }
+
 }
 
 void H264BinaryReader::U(size_t bits, uint16_t& value)
@@ -152,7 +170,14 @@ void H264BinaryReader::U(size_t bits, uint8_t& value, bool probe)
     {
         throw std::out_of_range(std::string());
     }
-    MMP_U_OPERATION(bits, value);
+    if (!probe)
+    {
+        MMP_U_OPERATION(bits, value);
+    }
+    else
+    {
+        MMP_U_PRED_OPERATION(bits, value);
+    }
 }
 
 void H264BinaryReader::I(size_t bits, int64_t& value)
@@ -191,7 +216,9 @@ void H264BinaryReader::I(size_t bits, int8_t& value)
     MMP_I_OPERATION(bits, value);
 }
 
+#undef MMP_I_PRED_OPERATION
 #undef MMP_I_OPERATION
+#undef MMP_U_PRED_OPERATION
 #undef MMP_U_OPERATION
 
 void H264BinaryReader::B8(uint8_t& value)
@@ -201,7 +228,23 @@ void H264BinaryReader::B8(uint8_t& value)
 
 void H264BinaryReader::Skip(size_t bits)
 {
-    assert(false);
+    if (bits + _curBitPos < 8) // 不需要跳转至下一个字节
+    {
+        _curBitPos = bits + _curBitPos;
+        return;
+    }
+    else // 需要跳转的 bits 先用消费当前 byte 剩余的 bits
+    {
+        bits = bits - (8 - _curBitPos);
+        _curBitPos = 8;
+    }
+    size_t skipByte = bits / 8; // 计算需要跳转的字节数
+    if (skipByte)
+    {
+        _reader->Seek(_reader->Tell() + skipByte);
+    }
+    ReadOneByteAuto(true);
+    _curBitPos = bits % 8;
 }
 
 bool H264BinaryReader::more_rbsp_data()
@@ -252,6 +295,17 @@ void H264BinaryReader::rbsp_trailing_bits()
     // } while (!(tmp == 1 && CurrentBits() == 8));
 }
 
+bool H264BinaryReader::more_data_in_byte_stream()
+{
+    // Hint :
+    // more_data_in_byte_stream( ), which is used only in the byte stream NAL unit syntax structure specified in Annex B, is 
+    // specified as follows:
+    // - If more data follow in the byte stream, the return value of more_data_in_byte_stream( ) is equal to TRUE.
+    // - Otherwise, the return value of more_data_in_byte_stream( ) is equal to FALSE.
+    assert(false);
+    return true;
+}
+
 bool H264BinaryReader::End()
 {
     assert(false);
@@ -263,18 +317,17 @@ int8_t H264BinaryReader::CurrentBits()
     return 8;
 }
 
-bool H264BinaryReader::ReadBytes(size_t byte, uint8_t& value)
+bool H264BinaryReader::ReadBytes(size_t byte, uint8_t* value)
 {
-    // TODO
-    assert(false);
-    return true;
+    size_t readByte = _reader->Read(value, byte);
+    return readByte == byte;
 }
 
-void H264BinaryReader::ReadOneByte()
+void H264BinaryReader::ReadOneByteAuto(bool force)
 {
-    if (_curBitPos == 8)
+    if (_curBitPos == 8 || force)
     {
-        ReadBytes(1, _curValue);
+        ReadBytes(1, &_curValue);
         _curBitPos = 0;
     }
 }
