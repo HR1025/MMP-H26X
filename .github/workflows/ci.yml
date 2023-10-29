@@ -1,0 +1,24 @@
+name: mpp-ci
+
+on:
+  push:
+    branches: [ "dev" ]
+  pull_request:
+    branches: [ "dev" ]
+
+jobs:
+  linux-gcc-make:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v1
+      - run : rm -rf build
+      - run : mkdir build
+      - run : cd build && cmake .. && make -j4
+
+  msvc2022-x64-make:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v1
+      - run : mkdir build
+      - run : cmake --no-warn-unused-cli -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE -S. -B./build -G "Visual Studio 17 2022" -T host=x64 -A x64
+      - run : cmake --build build --config Release -j 16
