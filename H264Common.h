@@ -58,6 +58,9 @@ enum H264SliceType
     MMP_H264_NUM_SLICE_TYPES            = 5
 };
 
+/**
+ * @sa  ISO 14496/10(2020) - Table 7-1 – NAL unit type codes, syntax element categories, and NAL unit type classes
+ */
 enum H264NaluType
 {
     MMP_H264_NALU_TYPE_NULL             = 0,
@@ -69,16 +72,16 @@ enum H264NaluType
     MMP_H264_NALU_TYPE_SEI              = 6,
     MMP_H264_NALU_TYPE_SPS              = 7,
     MMP_H264_NALU_TYPE_PPS              = 8,
-    MMP_H264_NALU_TYPE_AUD              = 9,    // Access Unit Delimiter
-    MMP_H264_NALU_TYPE_EOSEQ            = 10,   // end of sequence
-    MMP_H264_NALU_TYPE_EOSTREAM         = 11,   // end of stream
+    MMP_H264_NALU_TYPE_AUD              = 9,
+    MMP_H264_NALU_TYPE_EOSEQ            = 10,
+    MMP_H264_NALU_TYPE_EOSTREAM         = 11,
     MMP_H264_NALU_TYPE_FILL             = 12,
     MMP_H264_NALU_TYPE_SPSEXT           = 13,
-    MMP_H264_NALU_TYPE_PREFIX           = 14,   // prefix
+    MMP_H264_NALU_TYPE_PREFIX           = 14,
     MMP_H264_NALU_TYPE_SUB_SPS          = 15,
     MMP_H264_NALU_TYPE_SLICE_AUX        = 19,
-    MMP_H264_NALU_TYPE_SLC_EXT          = 20,   // slice extensive
-    MMP_H264_NALU_TYPE_VDRD             = 24    // View and Dependency Representation Delimiter NAL Unit
+    MMP_H264_NALU_TYPE_SLC_EXT          = 20,
+    MMP_H264_NALU_TYPE_VDRD             = 24
 };
 
 /**
@@ -289,7 +292,6 @@ public:
     H264NalSyntax() = default;
     ~H264NalSyntax() = default;
 public:
-    uint8_t  forbidden_zero_bit;
     uint8_t  nal_ref_idc;
     uint8_t  nal_unit_type;
     uint8_t  svc_extension_flag;

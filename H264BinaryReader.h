@@ -48,14 +48,15 @@ public:
 public:
     bool more_rbsp_data();
     void rbsp_trailing_bits();
+    bool more_data_in_byte_stream();
 public:
     bool End();
     int8_t CurrentBits();
 public:
-    void ReadOneByte();
-    bool ReadBytes(size_t byte, uint8_t& value);
+    void ReadOneByteAuto(bool force = false);
+    bool ReadBytes(size_t byte, uint8_t* value);
 private:
-    uint64_t _curBitPos;
+    uint8_t  _curBitPos;
     uint8_t  _curValue;
 private:
     AbstractH264ByteReader::ptr _reader;
