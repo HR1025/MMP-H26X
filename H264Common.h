@@ -281,27 +281,6 @@ public:
     uint8_t   reserved_one_bit;
 };
 
-/**
- * @sa ISO 14496/10(2020) - 7.3.1 NAL unit syntax
- */
-class H264NalSyntax
-{
-public:
-    using ptr = std::shared_ptr<H264NalSyntax>;
-public:
-    H264NalSyntax() = default;
-    ~H264NalSyntax() = default;
-public:
-    uint8_t  nal_ref_idc;
-    uint8_t  nal_unit_type;
-    uint8_t  svc_extension_flag;
-    H264NalSvcSyntax::ptr svc;
-    uint8_t  avc_3d_extension_flag;
-    H264Nal3dAvcSyntax::ptr avc;
-    H264NalMvcSyntax::ptr mvc;
-    int8_t   emulation_prevention_three_byte;
-};
-
 
 /**
  * @sa ISO 14496/10(2020) - D.1.2 Buffering period SEI message syntax
@@ -477,16 +456,13 @@ public:
     uint64_t  payloadType;
     uint64_t  payloadSize;
 public:
-    union
-    {
-        H264SeiBufferPeriodSyntax::ptr            bp;
-        H264SeiPictureTimingSyntax::ptr           pt;
-        H264SeiRecoveryPointSyntax::ptr           rp;
-        H264SeiContentLigntLevelInfoSyntax::ptr   clli;
-        H264SeiDisplayOrientation::ptr            dot;
-        H264SeiFilmGrainSyntax::ptr               fg;
-        H264SeiFramePackingArrangement::ptr       fpa;
-    } payload;
+    H264SeiBufferPeriodSyntax::ptr            bp;
+    H264SeiPictureTimingSyntax::ptr           pt;
+    H264SeiRecoveryPointSyntax::ptr           rp;
+    H264SeiContentLigntLevelInfoSyntax::ptr   clli;
+    H264SeiDisplayOrientation::ptr            dot;
+    H264SeiFilmGrainSyntax::ptr               fg;
+    H264SeiFramePackingArrangement::ptr       fpa;
 };
 
 /**
@@ -680,8 +656,8 @@ public:
     uint8_t    separate_colour_plane_flag;
     uint32_t   bit_depth_luma_minus8;
     uint32_t   bit_depth_chroma_minus8;
-    int32_t    qpprime_y_zero_transform_bypass_flag;
-    int32_t    seq_scaling_matrix_present_flag;
+    uint8_t    qpprime_y_zero_transform_bypass_flag;
+    uint8_t    seq_scaling_matrix_present_flag;
     std::vector<uint8_t> seq_scaling_list_present_flag;
     std::vector<std::vector<int32_t>> ScalingList4x4;
     std::vector<int32_t> UseDefaultScalingMatrix4x4Flag;
@@ -760,13 +736,13 @@ public:
 /**
  * @sa  ISO 14496/10(2020) - 7.3.3 Slice header syntax
  */
-class H264SliceSyntax
+class H264SliceHeaderSyntax
 {
 public:
-    using ptr = std::shared_ptr<H264SliceSyntax>;
+    using ptr = std::shared_ptr<H264SliceHeaderSyntax>;
 public:
-    H264SliceSyntax() = default;
-    ~H264SliceSyntax() = default;
+    H264SliceHeaderSyntax() = default;
+    ~H264SliceHeaderSyntax() = default;
 public:
     uint32_t  first_mb_in_slice;
     uint32_t  slice_type;
@@ -797,17 +773,44 @@ public:
     H264DecodedReferencePictureMarkingSyntax::ptr drpm;
 };
 
+/**
+ * @sa ISO 14496/10(2020) - 7.3.1 NAL unit syntax
+ */
+class H264NalSyntax
+{
+public:
+    using ptr = std::shared_ptr<H264NalSyntax>;
+public:
+    H264NalSyntax() = default;
+    ~H264NalSyntax() = default;
+public:
+    uint8_t  nal_ref_idc;
+    uint8_t  nal_unit_type;
+    uint8_t  svc_extension_flag;
+    H264NalSvcSyntax::ptr svc;
+    uint8_t  avc_3d_extension_flag;
+    H264Nal3dAvcSyntax::ptr avc;
+    H264NalMvcSyntax::ptr mvc;
+    int8_t   emulation_prevention_three_byte;
+    H264SpsSyntax::ptr          sps;
+    H264PpsSyntax::ptr          pps;
+    H264SeiSyntax::ptr          sei;
+    H264SliceHeaderSyntax::ptr  slice;
+};
+
 class H264ContextSyntax
 {
 public:
     using ptr = std::shared_ptr<H264ContextSyntax>;
 public:
-    H264ContextSyntax() = default;
+    H264ContextSyntax();
     ~H264ContextSyntax() = default;
 public:
     H264NalSyntax::ptr nal;
     std::unordered_map<int32_t, H264SpsSyntax::ptr> spsSet;
     std::unordered_map<int32_t, H264PpsSyntax::ptr> ppsSet;
+    H264SpsSyntax::ptr sps;
+    H264PpsSyntax::ptr pps;
 };
 
 } // namespace Codec

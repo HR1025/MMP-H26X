@@ -42,15 +42,18 @@ namespace Codec
 //  descriptor is specified in subclause 9.1.
 //
 
-static uint8_t kLeftAndLookUp[8] = {0xFF, 0x7F, 0x3F, 0x1F, 0xFF, 0x07, 0x03, 0x01};
+static uint8_t kLeftAndLookUp[8] = {0xFF, 0x7F, 0x3F, 0x1F, 0x0F, 0x07, 0x03, 0x01};
 static uint8_t kRightAndLookUp[8] = {0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE, 0xFF};
 
 
 H264BinaryReader::H264BinaryReader(AbstractH264ByteReader::ptr reader)
 {
+    _rbspEndByte = 0;
     _curBitPos = 8;
     _curValue = 0;
     _reader = reader;
+    _inNalUnit = false;
+    _zeroCount = 0;
 }
 
 H264BinaryReader::~H264BinaryReader()
@@ -62,10 +65,11 @@ void H264BinaryReader::UE(uint32_t& value)
 {
     // See also : ISO 14496/10(2020) - 9.1 Parsing process for Exp-Golomb codes
     int32_t leadingZeroBits = -1;
-    uint64_t tmp;
-    for (uint8_t b = 0; !b; leadingZeroBits++)
+    uint64_t tmp = 0;
+    for (uint8_t b = 0; b == 0; leadingZeroBits++)
     {
         U(1, b);
+        assert(b == 0 || b == 1);
     }
     U(leadingZeroBits, tmp);
     value = (1 << leadingZeroBits) - 1 + tmp;
@@ -100,7 +104,7 @@ void H264BinaryReader::SE(int32_t& value)
                                                     }\
                                                     else if (readBits < 8)\
                                                     {\
-                                                        value |= (_curValue & kRightAndLookUp[_curBitPos]) >> (8 - _curBitPos - readBits);\
+                                                        value |= (_curValue & kRightAndLookUp[readBits - 1]) >> (8 - _curBitPos - readBits);\
                                                     }\
                                                     else\
                                                     {\
@@ -123,11 +127,6 @@ void H264BinaryReader::SE(int32_t& value)
 #define MMP_I_OPERATION(bits, value)            MMP_U_OPERATION(bits, value)
 
 #define MMP_I_PRED_OPERATION(bits, value)       MMP_U_PRED_OPERATION(bits, value)
-
-void H264BinaryReader::U(size_t bits)
-{
-    assert(false);
-}
 
 void H264BinaryReader::U(size_t bits, uint64_t& value)
 {
@@ -152,7 +151,6 @@ void H264BinaryReader::U(size_t bits, uint32_t& value, bool probe)
     {
         MMP_U_PRED_OPERATION(bits, value);
     }
-
 }
 
 void H264BinaryReader::U(size_t bits, uint16_t& value)
@@ -247,6 +245,28 @@ void H264BinaryReader::Skip(size_t bits)
     _curBitPos = bits % 8;
 }
 
+void H264BinaryReader::MoveNextByte()
+{
+    _curBitPos = 8;
+    ReadOneByteAuto();
+}
+
+bool H264BinaryReader::Eof()
+{
+    return _reader->Eof();
+}
+
+void H264BinaryReader::BeginNalUnit()
+{
+    _inNalUnit = true;
+}
+
+
+void H264BinaryReader::EndNalUnit()
+{
+    _inNalUnit = false;
+}
+
 bool H264BinaryReader::more_rbsp_data()
 {
     // Hint :
@@ -259,40 +279,80 @@ bool H264BinaryReader::more_rbsp_data()
     //   more_rbsp_data( ) is equal to TRUE.
     // - Otherwise, the return value of more_rbsp_data( ) is equal to FALSE.
     //
-    // int8_t tmp = 0;
-
-    // U(1, tmp, true);
-    // if (tmp == 1 && CurrentBits() + 1 == 8)
-    // {
-    //     return false;
-    // }
+    // Hint : 寻找下一个 RBSP 起点 NAL START CODE (0x000003),
+    //        根据 ISO 描述, 在 rbsp_trailing_bits() 后可能存在几个字节的 zero, 此部分不算做 RBSP 范畴内
+    //        
+    if (_rbspEndByte > _reader->Tell()) // cache hint
+    {
+        return true;
+    }
+    else if (_reader->Tell() == _rbspEndByte) // reach end of rbsp
+    {
+        return false;
+    }
+    else // update _rbspEndByte and try once again
+    {
+        bool inNalUnit = _inNalUnit;
+        _inNalUnit = false;
+        uint8_t curBitPos = _curBitPos;
+        size_t curPosByte = curBitPos == 8 ? _reader->Tell() : _reader->Tell() - 1;
+        // 1 - 寻找下一个 RBSP 起点 NAL START CODE (0x000003)
+        {
+            try 
+            {
+                uint32_t next_24_bits = 0;
+                U(24, next_24_bits, true);
+                while (next_24_bits != 0x000001)
+                {
+                    Skip(8);
+                    _rbspEndByte = _reader->Tell();
+                    U(24, next_24_bits, true);
+                }
+            }
+            catch (...)
+            {
+                // Hint : nothing to do
+            }
+        }
+        // 2 - 移除 rbsp_trailing_bits() 后的几个 zero byte (,如果存在的话)
+        {
+            
+            uint8_t zeroByte = 0;
+            do
+            {
+                U(8, zeroByte, true);
+                if (zeroByte == 0)
+                {
+                    _reader->Seek(_reader->Tell() - 1);
+                    _rbspEndByte = _reader->Tell();
+                }
+            } while (zeroByte == 0);            
+        }
+        _reader->Seek(curPosByte);
+        if (curBitPos != 8)
+        {
+            ReadOneByteAuto(true);
+        }
+        _curBitPos = curBitPos;
+        _inNalUnit = inNalUnit;
+        return more_rbsp_data();
+    }
 
     return true;
 }
 
 void H264BinaryReader::rbsp_trailing_bits()
 {
-    // Hint :
-    // The RBSP contains an SODB as follows:
-    // - If the SODB is empty (i.e., zero bits in length), the RBSP is also empty.
-    // - Otherwise, the RBSP contains the SODB as follows:
-    //   1) The first byte of the RBSP contains the (most significant, left-most) eight bits of the SODB; the next byte of 
-    //      the RBSP contains the next eight bits of the SODB, etc., until fewer than eight bits of the SODB remain.
-    //   2) rbsp_trailing_bits( ) are present after the SODB as follows:
-    //     i)   The first (most significant, left-most) bits of the final RBSP byte contains the remaining bits of the SODB 
-    //          (if any).
-    //     ii)  The next bit consists of a single rbsp_stop_one_bit equal to 1.
-    //     iii) When the rbsp_stop_one_bit is not the last bit of a byte-aligned byte, one or more 
-    //          rbsp_alignment_zero_bit is present to result in byte alignment.
-    //   3) One or more cabac_zero_word 16-bit syntax elements equal to 0x0000 may be present in some RBSPs after the 
-    //      rbsp_trailing_bits( ) at the end of the RBSP.
-    // 
-    // int8_t tmp = 0;
-    // do
-    // {
-    //     U(1, tmp);
-    //     assert(!(tmp == 0 && CurrentBits() != 7));
-    // } while (!(tmp == 1 && CurrentBits() == 8));
+    // See also : ISO 14496/10(2020) - 7.3.2.11 RBSP trailing bits syntax
+    uint8_t rbsp_stop_one_bit = 0;
+    uint8_t rbsp_alignment_zero_bit;
+    U(1, rbsp_stop_one_bit);
+    assert(rbsp_stop_one_bit == 1);
+    while (!(_curBitPos == 0 || _curBitPos == 8))
+    {
+        U(1, rbsp_alignment_zero_bit);
+        // assert(rbsp_alignment_zero_bit == 0);
+    }
 }
 
 bool H264BinaryReader::more_data_in_byte_stream()
@@ -302,8 +362,7 @@ bool H264BinaryReader::more_data_in_byte_stream()
     // specified as follows:
     // - If more data follow in the byte stream, the return value of more_data_in_byte_stream( ) is equal to TRUE.
     // - Otherwise, the return value of more_data_in_byte_stream( ) is equal to FALSE.
-    assert(false);
-    return true;
+    return !_reader->Eof();
 }
 
 bool H264BinaryReader::End()
@@ -312,14 +371,13 @@ bool H264BinaryReader::End()
     return true;
 }
 
-int8_t H264BinaryReader::CurrentBits()
-{
-    return 8;
-}
-
 bool H264BinaryReader::ReadBytes(size_t byte, uint8_t* value)
 {
     size_t readByte = _reader->Read(value, byte);
+    if (readByte != byte)
+    {
+        throw std::out_of_range("");
+    }
     return readByte == byte;
 }
 
@@ -328,6 +386,23 @@ void H264BinaryReader::ReadOneByteAuto(bool force)
     if (_curBitPos == 8 || force)
     {
         ReadBytes(1, &_curValue);
+        //  Hint : 0x0000030x -> 0x00000x
+        //  The RBSP data is searched for byte-aligned bits of the following binary patterns:
+        //  '00000000 00000000 000000xx' (where xx represents any 2 bit pattern: 00, 01, 10, or 11),
+        //  and a byte equal to 0x03 is inserted to replace these bit patterns with the patterns:
+        //  '00000000 00000000 00000011 000000xx',
+        //  and finally, when the last byte of the RBSP data is equal to 0x00 (which can only occur when the RBSP ends in a 
+        //  cabac_zero_word), a final byte equal to 0x03 is appended to the end of the data. The last zero byte of a byte-aligned 
+        //  three-byte sequence 0x000000 in the RBSP (which is replaced by the four-byte sequence 0x00000300) is taken into 
+        //  account when searching the RBSP data for the next occurrence of byte-aligned bits with the binary patterns 
+        //  specified above.
+        //
+        if (_inNalUnit && _zeroCount == 2 && _curValue == 3) 
+        {
+            ReadBytes(1, &_curValue);
+            _zeroCount = 0;
+        }
+        _zeroCount = _curValue == 0 ? ++_zeroCount % 3 : 0;
         _curBitPos = 0;
     }
 }
