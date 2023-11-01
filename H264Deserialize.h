@@ -35,9 +35,9 @@ public:
     bool DeserializeNalSyntax(H264BinaryReader::ptr br, H264NalSyntax::ptr nal);
     bool DeserializeHrdSyntax(H264BinaryReader::ptr br, H264HrdSyntax::ptr hrd);
     bool DeserializeVuiSyntax(H264BinaryReader::ptr br, H264VuiSyntax::ptr vui);
-    bool DeserializeSeiSyntax(H264BinaryReader::ptr br, H264VuiSyntax::ptr vui, H264SeiSyntax::ptr sei);
+    bool DeserializeSeiSyntax(H264BinaryReader::ptr br, H264SeiSyntax::ptr sei);
     bool DeserializeSpsSyntax(H264BinaryReader::ptr br, H264SpsSyntax::ptr sps);
-    bool DeserializeSliceSyntax(H264BinaryReader::ptr br, H264SliceSyntax::ptr slice);
+    bool DeserializeSliceHeaderSyntax(H264BinaryReader::ptr br, H264NalSyntax::ptr nal, H264SliceHeaderSyntax::ptr slice);
     bool DeserializeDecodedReferencePictureMarkingSyntax(H264BinaryReader::ptr br, H264NalSyntax::ptr nal, H264DecodedReferencePictureMarkingSyntax::ptr drpm);
     bool DeserializeSubSpsSyntax(H264BinaryReader::ptr br, H264SpsSyntax::ptr sps, H264SubSpsSyntax::ptr subSps);
     bool DeserializeSpsMvcSyntax(H264BinaryReader::ptr br, H264SpsMvcSyntax::ptr mvc);
@@ -48,8 +48,8 @@ private:
     bool DeserializeNal3dAvcSyntax(H264BinaryReader::ptr br, H264Nal3dAvcSyntax::ptr avc);
     bool DeserializeNalMvcSyntax(H264BinaryReader::ptr br, H264NalMvcSyntax::ptr mvc);
     bool DeserializeScalingListSyntax(H264BinaryReader::ptr br, std::vector<int32_t>& scalingList, int32_t sizeOfScalingList, int32_t& useDefaultScalingMatrixFlag);
-    bool DeserializeReferencePictureListModificationSyntax(H264BinaryReader::ptr br, H264SliceSyntax::ptr slice, H264ReferencePictureListModificationSyntax::ptr rplm);
-    bool DeserializePredictionWeightTableSyntax(H264BinaryReader::ptr br, H264SpsSyntax::ptr sps, H264SliceSyntax::ptr slice, H264PredictionWeightTableSyntax::ptr pwt);
+    bool DeserializeReferencePictureListModificationSyntax(H264BinaryReader::ptr br, H264SliceHeaderSyntax::ptr slice, H264ReferencePictureListModificationSyntax::ptr rplm);
+    bool DeserializePredictionWeightTableSyntax(H264BinaryReader::ptr br, H264SpsSyntax::ptr sps, H264SliceHeaderSyntax::ptr slice, H264PredictionWeightTableSyntax::ptr pwt);
 private: /* SEI */
     bool DeserializeSeiBufferPeriodSyntax(H264BinaryReader::ptr br, H264SeiBufferPeriodSyntax::ptr bp);
     bool DeserializeSeiPictureTimingSyntax(H264BinaryReader::ptr br, H264VuiSyntax::ptr vui, H264SeiPictureTimingSyntax::ptr pt);

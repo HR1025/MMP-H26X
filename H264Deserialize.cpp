@@ -65,7 +65,15 @@ bool H264Deserialize::DeserializeByteStreamNalUnit(H264BinaryReader::ptr br, H26
             {
                 br->Skip(8);
             }
+            else
+            {
+                break;
+            }
         }
+        return true;
+    }
+    catch (const std::out_of_range& /* eof */)
+    {
         return true;
     }
     catch (...)
@@ -81,7 +89,7 @@ bool H264Deserialize::DeserializeNalSyntax(H264BinaryReader::ptr br, H264NalSynt
     {
         uint8_t  forbidden_zero_bit = 0;
         int64_t NumBytesInRBSP = 0;
-        int64_t nalUnitHeaderBytes = 1;
+        br->BeginNalUnit();
         br->U(1, forbidden_zero_bit);
         MPP_H264_SYNTAXT_STRICT_CHECK(forbidden_zero_bit == 0, "[nal] forbidden_zero_bit should be 0", return false);
         br->U(2, nal->nal_ref_idc);
@@ -105,7 +113,6 @@ bool H264Deserialize::DeserializeNalSyntax(H264BinaryReader::ptr br, H264NalSynt
                 {
                     return false;
                 }
-                nalUnitHeaderBytes += 3;
             }
             else if (nal->avc_3d_extension_flag)
             {
@@ -114,7 +121,6 @@ bool H264Deserialize::DeserializeNalSyntax(H264BinaryReader::ptr br, H264NalSynt
                 {
                     return false;
                 }
-                nalUnitHeaderBytes += 2;
             }
             else
             {
@@ -123,10 +129,60 @@ bool H264Deserialize::DeserializeNalSyntax(H264BinaryReader::ptr br, H264NalSynt
                 {
                     return false;
                 }
-                nalUnitHeaderBytes += 3;
             }
         }
-        // TODO
+        switch (nal->nal_unit_type)
+        {        
+            case H264NaluType::MMP_H264_NALU_TYPE_SPS:
+            {
+                nal->sps = std::make_shared<H264SpsSyntax>();
+                if (!DeserializeSpsSyntax(br, nal->sps))
+                {
+                    assert(false);
+                    return false;
+                }
+                break;
+            }
+            case H264NaluType::MMP_H264_NALU_TYPE_PPS:
+            {
+                nal->pps = std::make_shared<H264PpsSyntax>();
+                if (!DeserializePpsSyntax(br, nal->pps))
+                {
+                    assert(false);
+                    return false;
+                }
+                break;
+            }
+            case H264NaluType::MMP_H264_NALU_TYPE_IDR: /* pass through */
+            case H264NaluType::MMP_H264_NALU_TYPE_SLICE:
+            {
+                // Hint : Slice = Slice header + Slice data + rbsp_trailing_bits()
+                //        only parse slice header and may move to next nal unit
+                nal->slice = std::make_shared<H264SliceHeaderSyntax>();
+                if (!DeserializeSliceHeaderSyntax(br, nal, nal->slice))
+                {
+                    assert(false);
+                    return false;
+                }
+                br->MoveNextByte();
+                break;
+            }
+            case H264NaluType::MMP_H264_NALU_TYPE_SEI:
+            {
+                nal->sei = std::make_shared<H264SeiSyntax>();
+                if (!DeserializeSeiSyntax(br, nal->sei))
+                {
+                    assert(false);
+                    return false;
+                }
+                break;
+            }
+            default:
+                std::string msg = "unspport nal type parse " + std::to_string(nal->nal_unit_type);
+                MPP_H264_SYNTAXT_NORMAL_CHECK(true, msg, ;);
+                break;
+        }
+        br->EndNalUnit();
         return true;
     }
     catch (...)
@@ -313,7 +369,7 @@ bool H264Deserialize::DeserializeVuiSyntax(H264BinaryReader::ptr br, H264VuiSynt
     }
 }
 
-bool H264Deserialize::DeserializeSeiSyntax(H264BinaryReader::ptr br, H264VuiSyntax::ptr vui, H264SeiSyntax::ptr sei)
+bool H264Deserialize::DeserializeSeiSyntax(H264BinaryReader::ptr br, H264SeiSyntax::ptr sei)
 {
     // See also : ISO 14496/10(2020) - 7.3.2.3.1 Supplemental enhancement information message syntax
     try
@@ -336,8 +392,8 @@ bool H264Deserialize::DeserializeSeiSyntax(H264BinaryReader::ptr br, H264VuiSynt
             // See also : ISO 14496/10(2020) - D.1.1 General SEI message syntax
             case H264SeiType::MMP_H264_SEI_BUFFERING_PERIOD:
             {
-                sei->payload.bp = std::make_shared<H264SeiBufferPeriodSyntax>();
-                if (!DeserializeSeiBufferPeriodSyntax(br, sei->payload.bp))
+                sei->bp = std::make_shared<H264SeiBufferPeriodSyntax>();
+                if (!DeserializeSeiBufferPeriodSyntax(br, sei->bp))
                 {
                     return false;
                 }
@@ -345,9 +401,10 @@ bool H264Deserialize::DeserializeSeiSyntax(H264BinaryReader::ptr br, H264VuiSynt
             }
             case H264SeiType::MMP_H264_SEI_PIC_TIMING:
             {
-                sei->payload.pt = std::make_shared<H264SeiPictureTimingSyntax>();
+                H264VuiSyntax::ptr vui = _contex->sps && _contex->sps->vui_parameters_present_flag ? _contex->sps->vui_seq_parameters : nullptr;
+                sei->pt = std::make_shared<H264SeiPictureTimingSyntax>();
                 MPP_H264_SYNTAXT_STRICT_CHECK(vui, "[sei] missing vui", return false);
-                if (!DeserializeSeiPictureTimingSyntax(br, vui, sei->payload.pt))
+                if (!DeserializeSeiPictureTimingSyntax(br, vui, sei->pt))
                 {
                     return false;
                 }
@@ -355,8 +412,8 @@ bool H264Deserialize::DeserializeSeiSyntax(H264BinaryReader::ptr br, H264VuiSynt
             }
             case H264SeiType::MMP_H264_SEI_RECOVERY_POINT:
             {
-                sei->payload.rp = std::make_shared<H264SeiRecoveryPointSyntax>();
-                if (!DeserializeSeiRecoveryPointSyntax(br, sei->payload.rp))
+                sei->rp = std::make_shared<H264SeiRecoveryPointSyntax>();
+                if (!DeserializeSeiRecoveryPointSyntax(br, sei->rp))
                 {
                     return false;
                 }
@@ -364,8 +421,8 @@ bool H264Deserialize::DeserializeSeiSyntax(H264BinaryReader::ptr br, H264VuiSynt
             }
             case H264SeiType::MMP_H264_SEI_CONTENT_LIGHT_LEVEL_INFO:
             {
-                sei->payload.clli = std::make_shared<H264SeiContentLigntLevelInfoSyntax>();
-                if (!DeserializeSeiContentLigntLevelInfoSyntax(br, sei->payload.clli))
+                sei->clli = std::make_shared<H264SeiContentLigntLevelInfoSyntax>();
+                if (!DeserializeSeiContentLigntLevelInfoSyntax(br, sei->clli))
                 {
                     return false;
                 }
@@ -373,8 +430,8 @@ bool H264Deserialize::DeserializeSeiSyntax(H264BinaryReader::ptr br, H264VuiSynt
             }
             case H264SeiType::MMP_H264_SEI_DISPLAY_ORIENTATION:
             {
-                sei->payload.dot = std::make_shared<H264SeiDisplayOrientation>();
-                if (!DeserializeSeiDisplayOrientationSyntax(br, sei->payload.dot))
+                sei->dot = std::make_shared<H264SeiDisplayOrientation>();
+                if (!DeserializeSeiDisplayOrientationSyntax(br, sei->dot))
                 {
                     return false;
                 }
@@ -382,23 +439,23 @@ bool H264Deserialize::DeserializeSeiSyntax(H264BinaryReader::ptr br, H264VuiSynt
             }
             case H264SeiType::MMP_H264_SEI_FILM_GRAIN_CHARACTERISTICS:
             {
-                sei->payload.fg = std::make_shared<H264SeiFilmGrainSyntax>();
-                if (!DeserializeSeiFilmGrainSyntax(br, sei->payload.fg))
+                sei->fg = std::make_shared<H264SeiFilmGrainSyntax>();
+                if (!DeserializeSeiFilmGrainSyntax(br, sei->fg))
                 {
                     return false;
                 }
             }
             case H264SeiType::MMP_H264_SEI_FRAME_PACKING_ARRANGEMENT:
             {
-                sei->payload.fpa = std::make_shared<H264SeiFramePackingArrangement>();
-                if (!DeserializeSeiFramePackingArrangementSyntax(br, sei->payload.fpa))
+                sei->fpa = std::make_shared<H264SeiFramePackingArrangement>();
+                if (!DeserializeSeiFramePackingArrangementSyntax(br, sei->fpa))
                 {
                     return false;
                 }
             }
             default:
                 // TODO
-                assert(false);
+                // assert(false);
                 br->Skip(sei->payloadSize * 8);
                 break;
         }
@@ -415,6 +472,7 @@ bool H264Deserialize::DeserializeSpsSyntax(H264BinaryReader::ptr br, H264SpsSynt
     // See also : ISO 14496/10(2020) - 7.3.2.1.1 Sequence parameter set data syntax
     try
     {
+        uint8_t reserved_zero_2bits = 0;
         br->U(8, sps->profile_idc);
         br->U(1, sps->constraint_set0_flag);
         br->U(1, sps->constraint_set1_flag);
@@ -422,7 +480,7 @@ bool H264Deserialize::DeserializeSpsSyntax(H264BinaryReader::ptr br, H264SpsSynt
         br->U(1, sps->constraint_set3_flag);
         br->U(1, sps->constraint_set4_flag);
         br->U(1, sps->constraint_set5_flag);
-        br->U(2);
+        br->U(2, reserved_zero_2bits);
         br->U(8, sps->level_idc);
         br->UE(sps->seq_parameter_set_id);
         if (sps->profile_idc == 100 || sps->profile_idc == 110 ||
@@ -433,7 +491,7 @@ bool H264Deserialize::DeserializeSpsSyntax(H264BinaryReader::ptr br, H264SpsSynt
         )
         {
             br->UE(sps->chroma_format_idc);
-            MPP_H264_SYNTAXT_STRICT_CHECK(sps->chroma_format_idc > 3, "[sps] invalid chroma_format_idc", return false);
+            MPP_H264_SYNTAXT_STRICT_CHECK(!(sps->chroma_format_idc > 3), "[sps] invalid chroma_format_idc", return false);
             if (sps->chroma_format_idc == H264ChromaFormat::MMP_H264_CHROMA_444)
             {
                 br->U(1, sps->separate_colour_plane_flag);
@@ -441,8 +499,8 @@ bool H264Deserialize::DeserializeSpsSyntax(H264BinaryReader::ptr br, H264SpsSynt
             }
             br->UE(sps->bit_depth_luma_minus8);
             br->UE(sps->bit_depth_chroma_minus8);
-            br->U(sps->qpprime_y_zero_transform_bypass_flag);
-            br->U(sps->seq_scaling_matrix_present_flag);
+            br->U(1, sps->qpprime_y_zero_transform_bypass_flag);
+            br->U(1, sps->seq_scaling_matrix_present_flag);
             if (sps->seq_scaling_matrix_present_flag)
             {
                 int32_t loopTime = (sps->chroma_format_idc != H264ChromaFormat::MMP_H264_CHROMA_444) ? 8 : 12;
@@ -483,14 +541,20 @@ bool H264Deserialize::DeserializeSpsSyntax(H264BinaryReader::ptr br, H264SpsSynt
             }
         }
         br->UE(sps->log2_max_frame_num_minus4);
+        {
+            // Hint : The value of log2_max_frame_num_minus4 shall be in the range of 0 to 12, inclusive.
+            MPP_H264_SYNTAXT_STRICT_CHECK(/* sps->log2_max_frame_num_minus4>=0 && */ sps->log2_max_frame_num_minus4<=12, "[sps] log2_max_frame_num_minus4 out of range", return false);
+        }
         br->UE(sps->pic_order_cnt_type);
-        // Hint : The value of pic_order_cnt_type shall be in the range of 0 to 2, inclusive.
-        MPP_H264_SYNTAXT_STRICT_CHECK(sps->pic_order_cnt_type > 2, "[sps] log2_max_pic_order_cnt_lsb_minus4 out of range", return false);
+        {
+            // Hint : The value of pic_order_cnt_type shall be in the range of 0 to 2, inclusive.
+            MPP_H264_SYNTAXT_STRICT_CHECK(/* sps->pic_order_cnt_type >= 0 && */ sps->pic_order_cnt_type <= 2, "[sps] pic_order_cnt_type out of range", return false);
+        }
         if (sps->pic_order_cnt_type == 0)
         {
             br->UE(sps->log2_max_pic_order_cnt_lsb_minus4);
             // Hint : The value of log2_max_pic_order_cnt_lsb_minus4 shall be in the range of 0 to 12, inclusive.
-            MPP_H264_SYNTAXT_STRICT_CHECK(sps->log2_max_pic_order_cnt_lsb_minus4 > 12, "[sps] log2_max_pic_order_cnt_lsb_minus4 out of range", return false);
+            MPP_H264_SYNTAXT_STRICT_CHECK(/* sps->log2_max_pic_order_cnt_lsb_minus4 >= 0 && */ sps->log2_max_pic_order_cnt_lsb_minus4 <= 12, "[sps] log2_max_pic_order_cnt_lsb_minus4 out of range", return false);
         }
         else if (sps->pic_order_cnt_type == 1)
         {
@@ -532,7 +596,9 @@ bool H264Deserialize::DeserializeSpsSyntax(H264BinaryReader::ptr br, H264SpsSynt
                 return false;
             }
         }
+        br->rbsp_trailing_bits();
         _contex->spsSet[sps->seq_parameter_set_id] = sps;
+        _contex->sps = sps;
         return true;
     }
     catch (...)
@@ -541,24 +607,20 @@ bool H264Deserialize::DeserializeSpsSyntax(H264BinaryReader::ptr br, H264SpsSynt
     }
 }
 
-bool H264Deserialize::DeserializeSliceSyntax(H264BinaryReader::ptr br, H264SliceSyntax::ptr slice)
+bool H264Deserialize::DeserializeSliceHeaderSyntax(H264BinaryReader::ptr br, H264NalSyntax::ptr nal, H264SliceHeaderSyntax::ptr slice)
 {
     // See aslo : ISO 14496/10(2020) - 7.3.3 Slice header syntax
     try
     {
-        H264NalSyntax::ptr nal = nullptr;
         H264PpsSyntax::ptr pps = nullptr;
         H264SpsSyntax::ptr sps = nullptr;
         bool IdrPicFlag = false;
-        MPP_H264_SYNTAXT_STRICT_CHECK(_contex->nal, "[slice] missing nal", return false);
-        nal = _contex->nal;
         IdrPicFlag = nal->nal_unit_type == 5 /* MMP_H264_NALU_TYPE_IDR */ ? true : false;
         br->UE(slice->first_mb_in_slice);
         br->UE(slice->slice_type);
         slice->slice_type = slice->slice_type % 5; // See aslo : ISO 14496/10(2020) - Table 7-6 – Name association to slice_type 
+        MPP_H264_SYNTAXT_STRICT_CHECK(!(IdrPicFlag && slice->slice_type != H264SliceType::MMP_H264_I_SLICE), "[slice] A non-intra slice in an IDR NAL unit.", return false);
         br->UE(slice->pic_parameter_set_id);
-        // TODO : init slice parameter
-        assert(false);
         MPP_H264_SYNTAXT_STRICT_CHECK(_contex->ppsSet.count(slice->pic_parameter_set_id), "[slice] missing pps", return false);
         pps = _contex->ppsSet[slice->pic_parameter_set_id];
         MPP_H264_SYNTAXT_STRICT_CHECK(_contex->ppsSet.count(pps->seq_parameter_set_id), "[slice] missing sps", return false);
@@ -586,6 +648,14 @@ bool H264Deserialize::DeserializeSliceSyntax(H264BinaryReader::ptr br, H264Slice
         if (IdrPicFlag)
         {
             br->UE(slice->idr_pic_id);
+            {
+                // Hint :
+                // idr_pic_id identifies an IDR picture. The values of idr_pic_id in all the slices of an IDR picture shall remain unchanged. 
+                // When two consecutive access units in decoding order are both IDR access units, the value of idr_pic_id in the slices of 
+                // the first such IDR access unit shall differ from the idr_pic_id in the second such IDR access unit. The value of idr_pic_id 
+                // shall be in the range of 0 to 65535, inclusive.
+                MPP_H264_SYNTAXT_STRICT_CHECK(/* slice->idr_pic_id >= 0 && */ slice->idr_pic_id <= 65535, "[slice] idr_pic_id out of range", return false);
+            }
         }
         if (sps->pic_order_cnt_type == 0)
         {
@@ -654,6 +724,39 @@ bool H264Deserialize::DeserializeSliceSyntax(H264BinaryReader::ptr br, H264Slice
                 return false;
             }
         }
+        if (pps->entropy_coding_mode_flag && slice->slice_type != H264SliceType::MMP_H264_I_SLICE && slice->slice_type != H264SliceType::MMP_H264_SI_SLICE)
+        {
+            br->UE(slice->cabac_init_idc);
+            {
+                // Hint :  The value of cabac_init_idc shall be in the range of 0 to 2, inclusive.
+                // FIXME:
+                // MPP_H264_SYNTAXT_STRICT_CHECK(/* slice->cabac_init_idc >= 0 && */ slice->cabac_init_idc <= 2, "[slice] cabac_init_idc out of range", return false);
+            }
+        }
+        br->SE(slice->slice_qp_delta);
+        if (slice->slice_type == H264SliceType::MMP_H264_SP_SLICE || slice->slice_type == H264SliceType::MMP_H264_SI_SLICE)
+        {
+            if (slice->slice_type == H264SliceType::MMP_H264_SP_SLICE)
+            {
+                br->U(1, slice->sp_for_switch_flag);
+            }
+            br->SE(slice->slice_qs_delta);;
+        }
+        if (pps->deblocking_filter_control_present_flag)
+        {
+            br->UE(slice->disable_deblocking_filter_idc);
+            if (slice->disable_deblocking_filter_idc != 1)
+            {
+                br->SE(slice->slice_alpha_c0_offset_div2);
+                br->SE(slice->slice_beta_offset_div2);
+            }
+        }
+        if (pps->num_slice_groups_minus1>0 &&
+            pps->slice_group_map_type>=3 && pps->slice_group_map_type<=5
+        )
+        {
+            br->U(2, slice->slice_group_change_cycle);
+        }
         return true;
     }
     catch (...)
@@ -683,7 +786,8 @@ bool H264Deserialize::DeserializeDecodedReferencePictureMarkingSyntax(H264Binary
                 do
                 {
                     br->UE(memory_management_control_operation);
-                    MPP_H264_SYNTAXT_STRICT_CHECK(memory_management_control_operation >= 0 && memory_management_control_operation <= 6, "[drpm] memory_management_control_operation out of range", return false);
+                    // FIXME:
+                    // MPP_H264_SYNTAXT_STRICT_CHECK(memory_management_control_operation >= 0 && memory_management_control_operation <= 6, "[drpm] memory_management_control_operation out of range", return false);
                     if (memory_management_control_operation == 1 ||
                         memory_management_control_operation == 3
                     )
@@ -935,8 +1039,10 @@ bool H264Deserialize::DeserializeMvcVuiSyntax(H264BinaryReader::ptr br, H264MvcV
 
 bool H264Deserialize::DeserializePpsSyntax(H264BinaryReader::ptr br, H264PpsSyntax::ptr pps)
 {
+    // See aslo : ISO 14496/10(2020) - 7.3.2.2 Picture parameter set RBSP syntax
     try
     {
+        br->more_rbsp_data();
         br->UE(pps->pic_parameter_set_id);
         MPP_H264_SYNTAXT_STRICT_CHECK(pps->pic_parameter_set_id >= 0 && pps->pic_parameter_set_id <= 255, "[sps] pic_parameter_set_id out of range", return false);
         br->UE(pps->seq_parameter_set_id);
@@ -1031,9 +1137,10 @@ bool H264Deserialize::DeserializePpsSyntax(H264BinaryReader::ptr br, H264PpsSynt
                 // Reference : FFmpeg 6.x
                 pps->second_chroma_qp_index_offset = pps->chroma_qp_index_offset;
             }
-            br->rbsp_trailing_bits();
         }
+        br->rbsp_trailing_bits();
         _contex->ppsSet[pps->pic_parameter_set_id] = pps;
+        _contex->pps = pps;
         return true;
     }
     catch (...)
@@ -1133,7 +1240,7 @@ bool H264Deserialize::DeserializeScalingListSyntax(H264BinaryReader::ptr br, std
     }
 }
 
-bool H264Deserialize::DeserializeReferencePictureListModificationSyntax(H264BinaryReader::ptr br, H264SliceSyntax::ptr slice, H264ReferencePictureListModificationSyntax::ptr rplm)
+bool H264Deserialize::DeserializeReferencePictureListModificationSyntax(H264BinaryReader::ptr br, H264SliceHeaderSyntax::ptr slice, H264ReferencePictureListModificationSyntax::ptr rplm)
 {
     // See also : ISO 14496/10(2020) - 7.3.3.1 Reference picture list modification syntax
     try
@@ -1190,7 +1297,7 @@ bool H264Deserialize::DeserializeReferencePictureListModificationSyntax(H264Bina
     }
 }
 
-bool H264Deserialize::DeserializePredictionWeightTableSyntax(H264BinaryReader::ptr br, H264SpsSyntax::ptr sps, H264SliceSyntax::ptr slice, H264PredictionWeightTableSyntax::ptr pwt)
+bool H264Deserialize::DeserializePredictionWeightTableSyntax(H264BinaryReader::ptr br, H264SpsSyntax::ptr sps, H264SliceHeaderSyntax::ptr slice, H264PredictionWeightTableSyntax::ptr pwt)
 {
     // See also : ISO 14496/10(2020) - 7.3.3.2 Prediction weight table syntax
     try

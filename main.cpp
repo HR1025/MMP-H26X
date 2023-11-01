@@ -18,7 +18,7 @@ namespace Codec
 class FileH264ByteReader : public Mmp::Codec::AbstractH264ByteReader
 {
 public:
-    FileH264ByteReader(const std::string& h264Path);
+    explicit FileH264ByteReader(const std::string& h264Path);
     ~FileH264ByteReader();
 public:
     size_t Read(void* data, size_t bytes) override;
@@ -71,6 +71,33 @@ bool FileH264ByteReader::Eof()
 
 using namespace Mmp::Codec;
 
+static std::string NalUintTypeToStr(uint32_t nal_unit_type)
+{
+    switch (nal_unit_type)
+    {
+        case H264NaluType::MMP_H264_NALU_TYPE_NULL: return "null";
+        case H264NaluType::MMP_H264_NALU_TYPE_SLICE: return "slice";
+        case H264NaluType::MMP_H264_NALU_TYPE_DPA: return "dpa";
+        case H264NaluType::MMP_H264_NALU_TYPE_DPB: return "dpb";
+        case H264NaluType::MMP_H264_NALU_TYPE_DPC: return "dpc";
+        case H264NaluType::MMP_H264_NALU_TYPE_IDR: return "idr";
+        case H264NaluType::MMP_H264_NALU_TYPE_SEI: return "sei";
+        case H264NaluType::MMP_H264_NALU_TYPE_SPS: return "sps";
+        case H264NaluType::MMP_H264_NALU_TYPE_PPS: return "pps";
+        case H264NaluType::MMP_H264_NALU_TYPE_AUD: return "aud";
+        case H264NaluType::MMP_H264_NALU_TYPE_EOSEQ: return "eoseq";
+        case H264NaluType::MMP_H264_NALU_TYPE_EOSTREAM: return "eostream";
+        case H264NaluType::MMP_H264_NALU_TYPE_FILL: return "fill";
+        case H264NaluType::MMP_H264_NALU_TYPE_SPSEXT: return "spsext";
+        case H264NaluType::MMP_H264_NALU_TYPE_PREFIX: return "prefix";
+        case H264NaluType::MMP_H264_NALU_TYPE_SUB_SPS: return "subsps";
+        case H264NaluType::MMP_H264_NALU_TYPE_SLC_EXT: return "slcext";
+        case H264NaluType::MMP_H264_NALU_TYPE_VDRD: return "vord";
+        default:
+            return "unkonwn";
+    }
+}
+
 void Usage()
 {
     std::stringstream ss;
@@ -88,8 +115,20 @@ int main(int argc, char* argv[])
     AbstractH264ByteReader::ptr byteReader = std::make_shared<FileH264ByteReader>(std::string(argv[1]));
     H264BinaryReader::ptr binaryReader = std::make_shared<H264BinaryReader>(byteReader);
     H264Deserialize::ptr deserialize = std::make_shared<H264Deserialize>();
-    H264NalSyntax::ptr nal = std::make_shared<H264NalSyntax>();
-    deserialize->DeserializeByteStreamNalUnit(binaryReader, nal);
+    std::vector<H264NalSyntax::ptr> nals;
+    bool res = true;
+    int num = 0;
+    do
+    {
+        num++;
+        H264NalSyntax::ptr nal = std::make_shared<H264NalSyntax>();
+        res = deserialize->DeserializeByteStreamNalUnit(binaryReader, nal);
+        std::cout << "(" << num << ")" << "  "  << "[" << NalUintTypeToStr(nal->nal_unit_type) << "]" << std::endl;
+        if (res)
+        {
+            nals.push_back(nal);
+        }
+    } while (res && !binaryReader->Eof());
     
     return 0;
 }
