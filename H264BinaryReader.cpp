@@ -304,7 +304,14 @@ bool H264BinaryReader::more_rbsp_data()
                 U(24, next_24_bits, true);
                 while (next_24_bits != 0x000001)
                 {
-                    Skip(8);
+                    if ((next_24_bits & 0xFFFF) == 0)
+                    {
+                        Skip(8);
+                    }
+                    else
+                    {
+                        Skip(32);
+                    }
                     _rbspEndByte = _reader->Tell();
                     U(24, next_24_bits, true);
                 }

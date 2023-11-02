@@ -1,7 +1,9 @@
+#include <memory.h>
 #include <iostream>
 #include <fstream>
 #include <cassert>
 #include <sstream>
+#include <chrono>
 
 #include "AbstractH264ByteReader.h"
 #include "H264BinaryReader.h"
@@ -15,11 +17,11 @@ namespace Codec
 /**
  * @brief simple AbstractH264ByteReader implemention based on std::ifstream 
  */
-class FileH264ByteReader : public Mmp::Codec::AbstractH264ByteReader
+class SimpleFileH264ByteReader : public Mmp::Codec::AbstractH264ByteReader
 {
 public:
-    explicit FileH264ByteReader(const std::string& h264Path);
-    ~FileH264ByteReader();
+    explicit SimpleFileH264ByteReader(const std::string& h264Path);
+    ~SimpleFileH264ByteReader();
 public:
     size_t Read(void* data, size_t bytes) override;
     bool Seek(size_t offset) override;
@@ -29,7 +31,7 @@ private:
     std::ifstream _ifs;
 };
 
-FileH264ByteReader::FileH264ByteReader(const std::string& h264Path)
+SimpleFileH264ByteReader::SimpleFileH264ByteReader(const std::string& h264Path)
 {
     _ifs.open(h264Path, std::ios::in | std::ios::binary);
     if (!_ifs.is_open())
@@ -39,31 +41,144 @@ FileH264ByteReader::FileH264ByteReader(const std::string& h264Path)
     }
 }
 
-FileH264ByteReader::~FileH264ByteReader()
+SimpleFileH264ByteReader::~SimpleFileH264ByteReader()
 {
     _ifs.close();
 }
 
-size_t FileH264ByteReader::Read(void* data, size_t bytes)
+size_t SimpleFileH264ByteReader::Read(void* data, size_t bytes)
 {
     _ifs.read((char*) data, bytes);
     return _ifs.gcount();
 }
 
-bool FileH264ByteReader::Seek(size_t offset)
+bool SimpleFileH264ByteReader::Seek(size_t offset)
 {
     _ifs.seekg(offset);
     return _ifs.tellg() == offset;
 }
 
-size_t FileH264ByteReader::Tell()
+size_t SimpleFileH264ByteReader::Tell()
 {
     return _ifs.tellg();
 }
 
-bool FileH264ByteReader::Eof()
+bool SimpleFileH264ByteReader::Eof()
 {
     return _ifs.eof();
+}
+
+} // namespace Codec
+} // namespace Mmp
+
+namespace Mmp
+{
+namespace Codec
+{
+
+constexpr uint32_t kBufSize = 1024 * 1024;
+
+/**
+ * @brief memory cache AbstractH264ByteReader implemention based on std::ifstream 
+ */
+class CacheFileH264ByteReader : public Mmp::Codec::AbstractH264ByteReader
+{
+public:
+    explicit CacheFileH264ByteReader(const std::string& h264Path);
+    ~CacheFileH264ByteReader();
+public:
+    size_t Read(void* data, size_t bytes) override;
+    bool Seek(size_t offset) override;
+    size_t Tell() override;
+    bool Eof() override;
+private:
+    std::ifstream _ifs;
+private:
+    uint8_t* _buf;
+    uint32_t _offset;
+    uint32_t _cur;
+    uint32_t _len;
+};
+
+CacheFileH264ByteReader::CacheFileH264ByteReader(const std::string& h264Path)
+{
+    _ifs.open(h264Path, std::ios::in | std::ios::binary);
+    if (!_ifs.is_open())
+    {
+        assert(false);
+        exit(255);
+    }
+    _buf = new uint8_t[kBufSize];
+    _offset = _ifs.tellg();
+    _ifs.read((char*)_buf, kBufSize);
+    _cur = 0;
+    _len = _ifs.gcount();
+}
+
+CacheFileH264ByteReader::~CacheFileH264ByteReader()
+{
+    delete[] _buf;
+    _ifs.close();
+}
+
+size_t CacheFileH264ByteReader::Read(void* data, size_t bytes)
+{
+    if (_cur + bytes < _len)
+    {
+        memcpy(data, _buf + _cur, bytes);
+        _cur += bytes;
+        return bytes;
+    }
+    else if (_ifs.eof())
+    {
+        memcpy(data, _buf + _cur, _len -  _cur);
+        return _len -  _cur;
+    }
+    else
+    {
+        _offset = _ifs.tellg();
+        _ifs.read((char*)_buf, kBufSize);
+        _cur = 0;
+        _len = _ifs.gcount(); 
+        return Read(data, bytes);
+    }
+}
+
+bool CacheFileH264ByteReader::Seek(size_t offset)
+{
+    if (offset < _offset)
+    {
+        _ifs.seekg(offset);
+        _offset = _ifs.tellg();
+        _ifs.read((char*)_buf, kBufSize);
+        _cur = 0;
+        _len = _ifs.gcount(); 
+        return _offset == offset;
+    }
+    else if (offset > _offset + kBufSize)
+    {
+        _ifs.seekg(offset);
+        _offset = _ifs.tellg();
+        _ifs.read((char*)_buf, kBufSize);
+        _cur = 0;
+        _len = _ifs.gcount(); 
+        return _offset == offset;
+    }
+    else
+    {
+        _cur = offset - _offset;
+        return true;
+    }
+}
+
+size_t CacheFileH264ByteReader::Tell()
+{
+    return _offset + _cur;
+}
+
+bool CacheFileH264ByteReader::Eof()
+{
+    return _ifs.eof() && _cur == _len;
 }
 
 } // namespace Codec
@@ -112,23 +227,31 @@ int main(int argc, char* argv[])
         Usage();
         return -1;
     }
-    AbstractH264ByteReader::ptr byteReader = std::make_shared<FileH264ByteReader>(std::string(argv[1]));
+#if 0 /* slow but simple */
+    AbstractH264ByteReader::ptr byteReader = std::make_shared<SimpleFileH264ByteReader>(std::string(argv[1]));
+#else /* fast but a bit complicated  */
+    AbstractH264ByteReader::ptr byteReader = std::make_shared<CacheFileH264ByteReader>(std::string(argv[1]));
+#endif
     H264BinaryReader::ptr binaryReader = std::make_shared<H264BinaryReader>(byteReader);
     H264Deserialize::ptr deserialize = std::make_shared<H264Deserialize>();
     std::vector<H264NalSyntax::ptr> nals;
     bool res = true;
     int num = 0;
+    auto begin = std::chrono::system_clock::now();
     do
     {
         num++;
         H264NalSyntax::ptr nal = std::make_shared<H264NalSyntax>();
+        auto start = std::chrono::system_clock::now();
         res = deserialize->DeserializeByteStreamNalUnit(binaryReader, nal);
-        std::cout << "(" << num << ")" << "  "  << "[" << NalUintTypeToStr(nal->nal_unit_type) << "]" << std::endl;
+        std::cout << "(" << num << ")" << "  "  << "[" << NalUintTypeToStr(nal->nal_unit_type) << "]" 
+                  << " cost time :" << (std::chrono::system_clock::now() - start).count() / (1000 * 1000) << " ms"
+                  << std::endl;
         if (res)
         {
             nals.push_back(nal);
         }
     } while (res && !binaryReader->Eof());
-    
+    std::cout << "total cost time : " << (std::chrono::system_clock::now() - begin).count() / (1000 * 1000) << "ms";
     return 0;
 }
