@@ -157,7 +157,7 @@ class H264HrdSyntax
 public:
     using ptr = std::shared_ptr<H264HrdSyntax>;
 public:
-    H264HrdSyntax() = default;
+    H264HrdSyntax();
     ~H264HrdSyntax() = default;
 public:
     uint32_t               cpb_cnt_minus1;
@@ -180,7 +180,7 @@ class H264VuiSyntax
 public:
     using ptr = std::shared_ptr<H264VuiSyntax>;
 public:
-    H264VuiSyntax() = default;
+    H264VuiSyntax();
     ~H264VuiSyntax() = default;
 public:
     uint8_t   aspect_ratio_info_present_flag;
@@ -227,7 +227,7 @@ class H264NalSvcSyntax
 public:
     using ptr = std::shared_ptr<H264NalSvcSyntax>;
 public:
-    H264NalSvcSyntax() = default;
+    H264NalSvcSyntax();
     ~H264NalSvcSyntax() = default;
 public:
     uint8_t   idr_flag;
@@ -250,7 +250,7 @@ class H264Nal3dAvcSyntax
 public:
     using ptr = std::shared_ptr<H264Nal3dAvcSyntax>;
 public:
-    H264Nal3dAvcSyntax() = default;
+    H264Nal3dAvcSyntax();
     ~H264Nal3dAvcSyntax() = default;
 public:
     uint8_t    view_idx;
@@ -269,7 +269,7 @@ class H264NalMvcSyntax
 public:
     using ptr = std::shared_ptr<H264NalMvcSyntax>;
 public:
-    H264NalMvcSyntax() = default;
+    H264NalMvcSyntax();
     ~H264NalMvcSyntax() = default;
 public:
     uint8_t   non_idr_flag;
@@ -290,7 +290,7 @@ class H264SeiBufferPeriodSyntax
 public:
     using ptr = std::shared_ptr<H264SeiBufferPeriodSyntax>;
 public:
-    H264SeiBufferPeriodSyntax() = default;
+    H264SeiBufferPeriodSyntax();
     ~H264SeiBufferPeriodSyntax() = default;
 public:
     uint32_t seq_parameter_set_id;
@@ -306,7 +306,7 @@ class H264SeiPictureTimingSyntax
 public:
     using ptr = std::shared_ptr<H264SeiPictureTimingSyntax>;
 public:
-    H264SeiPictureTimingSyntax() = default;
+    H264SeiPictureTimingSyntax();
     ~H264SeiPictureTimingSyntax() = default;
 public:
     uint32_t  cpb_removal_delay;
@@ -337,7 +337,7 @@ class H264SeiRecoveryPointSyntax
 public:
     using ptr = std::shared_ptr<H264SeiRecoveryPointSyntax>;
 public:
-    H264SeiRecoveryPointSyntax() = default;
+    H264SeiRecoveryPointSyntax();
     ~H264SeiRecoveryPointSyntax() = default;
 public:
     uint32_t recovery_frame_cnt;
@@ -354,7 +354,7 @@ class H264SeiFilmGrainSyntax
 public:
     using ptr = std::shared_ptr<H264SeiFilmGrainSyntax>;
 public:
-    H264SeiFilmGrainSyntax() = default;
+    H264SeiFilmGrainSyntax();
     ~H264SeiFilmGrainSyntax() = default;
 public:
     uint8_t  film_grain_characteristics_cancel_flag;
@@ -385,7 +385,7 @@ class H264SeiFramePackingArrangement
 public:
     using ptr = std::shared_ptr<H264SeiFramePackingArrangement>;
 public:
-    H264SeiFramePackingArrangement() = default;
+    H264SeiFramePackingArrangement();
     ~H264SeiFramePackingArrangement() = default;
 public:
     uint32_t  frame_packing_arrangement_id;
@@ -416,7 +416,7 @@ class H264SeiContentLigntLevelInfoSyntax
 public:
     using ptr = std::shared_ptr<H264SeiContentLigntLevelInfoSyntax>;
 public:
-    H264SeiContentLigntLevelInfoSyntax() = default;
+    H264SeiContentLigntLevelInfoSyntax();
     ~H264SeiContentLigntLevelInfoSyntax() = default;
 public:
     uint16_t max_content_light_level;
@@ -431,7 +431,7 @@ class H264SeiDisplayOrientation
 public:
     using ptr = std::shared_ptr<H264SeiDisplayOrientation>;
 public:
-    H264SeiDisplayOrientation() = default;
+    H264SeiDisplayOrientation();
     ~H264SeiDisplayOrientation() = default;
 public:
     uint8_t   display_orientation_cancel_flag;
@@ -450,7 +450,7 @@ class H264SeiSyntax
 public:
     using ptr = std::shared_ptr<H264SeiSyntax>;
 public:
-    H264SeiSyntax() = default;
+    H264SeiSyntax();
     ~H264SeiSyntax() = default;
 public:
     uint64_t  payloadType;
@@ -473,7 +473,7 @@ class H264SpsSvcSynctax
 public:
     using ptr = std::shared_ptr<H264SpsSvcSynctax>;
 public:
-    H264SpsSvcSynctax() = default;
+    H264SpsSvcSynctax();
     ~H264SpsSvcSynctax() = default;
 public:
     uint8_t  inter_layer_deblocking_filter_control_present_flag;
@@ -499,7 +499,7 @@ class H264SpsMvcSyntax
 public:
     using ptr = std::shared_ptr<H264SpsMvcSyntax>;
 public:
-    H264SpsMvcSyntax() = default;
+    H264SpsMvcSyntax();
     ~H264SpsMvcSyntax() = default;
 public:
     uint32_t   num_views_minus1;
@@ -529,7 +529,7 @@ class H264MvcVuiSyntax
 public:
     using ptr = std::shared_ptr<H264MvcVuiSyntax>;
 public:
-    H264MvcVuiSyntax() = default;
+    H264MvcVuiSyntax();
     ~H264MvcVuiSyntax() = default;
 public:
     uint32_t vui_mvc_num_ops_minus1;
@@ -556,7 +556,7 @@ class H264ReferencePictureListModificationSyntax
 public:
     using ptr = std::shared_ptr<H264ReferencePictureListModificationSyntax>;
 public:
-    H264ReferencePictureListModificationSyntax() = default;
+    H264ReferencePictureListModificationSyntax();
     ~H264ReferencePictureListModificationSyntax() = default;
 public:
     uint8_t   ref_pic_list_modification_flag_l0;
@@ -573,7 +573,7 @@ class H264PredictionWeightTableSyntax
 public:
     using ptr = std::shared_ptr<H264PredictionWeightTableSyntax>;
 public:
-    H264PredictionWeightTableSyntax() = default;
+    H264PredictionWeightTableSyntax();
     ~H264PredictionWeightTableSyntax() = default;
 public:
     uint32_t  luma_log2_weight_denom;
@@ -600,7 +600,7 @@ class H264DecodedReferencePictureMarkingSyntax
 public:
     using ptr = std::shared_ptr<H264DecodedReferencePictureMarkingSyntax>;
 public:
-    H264DecodedReferencePictureMarkingSyntax() = default;
+    H264DecodedReferencePictureMarkingSyntax();
     ~H264DecodedReferencePictureMarkingSyntax() = default;
 public:
     uint8_t   no_output_of_prior_pics_flag;
@@ -620,7 +620,7 @@ class H264SubSpsSyntax
 public:
     using ptr = std::shared_ptr<H264SubSpsSyntax>;
 public:
-    H264SubSpsSyntax() = default;
+    H264SubSpsSyntax();
     ~H264SubSpsSyntax() = default;
 public:
     uint8_t  svc_vui_parameters_present_flag;
@@ -640,7 +640,7 @@ class H264SpsSyntax
 public:
     using ptr = std::shared_ptr<H264SpsSyntax>;
 public:
-    H264SpsSyntax() = default;
+    H264SpsSyntax();
     ~H264SpsSyntax() = default;
 public:
     uint8_t    profile_idc;
@@ -695,7 +695,7 @@ class H264PpsSyntax
 public:
     using ptr = std::shared_ptr<H264PpsSyntax>;
 public:
-    H264PpsSyntax() = default;
+    H264PpsSyntax();
     ~H264PpsSyntax() = default;
 public:
     uint32_t  pic_parameter_set_id;
@@ -741,7 +741,7 @@ class H264SliceHeaderSyntax
 public:
     using ptr = std::shared_ptr<H264SliceHeaderSyntax>;
 public:
-    H264SliceHeaderSyntax() = default;
+    H264SliceHeaderSyntax();
     ~H264SliceHeaderSyntax() = default;
 public:
     uint32_t  first_mb_in_slice;
@@ -781,7 +781,7 @@ class H264NalSyntax
 public:
     using ptr = std::shared_ptr<H264NalSyntax>;
 public:
-    H264NalSyntax() = default;
+    H264NalSyntax();
     ~H264NalSyntax() = default;
 public:
     uint8_t  nal_ref_idc;
