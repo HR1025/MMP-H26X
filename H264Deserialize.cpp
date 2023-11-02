@@ -399,7 +399,7 @@ bool H264Deserialize::DeserializeSeiSyntax(H264BinaryReader::ptr br, H264SeiSynt
         {
             br->U(8, ff_byte);
             sei->payloadSize += ff_byte;
-        } while (ff_byte);
+        } while (ff_byte == 0xFF);
 
         switch (sei->payloadType) 
         {
@@ -419,6 +419,24 @@ bool H264Deserialize::DeserializeSeiSyntax(H264BinaryReader::ptr br, H264SeiSynt
                 sei->pt = std::make_shared<H264SeiPictureTimingSyntax>();
                 MPP_H264_SYNTAXT_STRICT_CHECK(vui, "[sei] missing vui", return false);
                 if (!DeserializeSeiPictureTimingSyntax(br, vui, sei->pt))
+                {
+                    return false;
+                }
+                break;
+            }
+            case H264SeiType::MMP_H264_SEI_USER_DATA_REGISTERED_ITU_T_T35:
+            {
+                sei->udr = std::make_shared<H264SeiUserDataRegisteredSyntax>();
+                if (!DeserializeSeiUserDataRegisteredSyntax(br, sei->payloadSize, sei->udr))
+                {
+                    return false;
+                }
+                break;
+            }
+            case H264SeiType::MMP_H264_SEI_USER_DATA_UNREGISTERED:
+            {
+                sei->udn = std::make_shared<H264SeiUserDataUnregisteredSyntax>();
+                if (!DeserializeSeiUserDataUnregisteredSyntax(br, sei->payloadSize, sei->udn))
                 {
                     return false;
                 }
@@ -444,7 +462,7 @@ bool H264Deserialize::DeserializeSeiSyntax(H264BinaryReader::ptr br, H264SeiSynt
             }
             case H264SeiType::MMP_H264_SEI_DISPLAY_ORIENTATION:
             {
-                sei->dot = std::make_shared<H264SeiDisplayOrientation>();
+                sei->dot = std::make_shared<H264SeiDisplayOrientationSyntax>();
                 if (!DeserializeSeiDisplayOrientationSyntax(br, sei->dot))
                 {
                     return false;
@@ -458,18 +476,45 @@ bool H264Deserialize::DeserializeSeiSyntax(H264BinaryReader::ptr br, H264SeiSynt
                 {
                     return false;
                 }
+                break;
             }
             case H264SeiType::MMP_H264_SEI_FRAME_PACKING_ARRANGEMENT:
             {
-                sei->fpa = std::make_shared<H264SeiFramePackingArrangement>();
+                sei->fpa = std::make_shared<H264SeiFramePackingArrangementSyntax>();
                 if (!DeserializeSeiFramePackingArrangementSyntax(br, sei->fpa))
                 {
                     return false;
                 }
+                break;
+            }
+            case H264SeiType::MMP_H264_SEI_ALTERNATIVE_TRANSFER_CHARACTERISTICS:
+            {
+                sei->atc = std::make_shared<H264SeiAlternativeTransferCharacteristicsSyntax>();
+                if (!DeserializeSeiAlternativeTransferCharacteristicsSyntax(br, sei->atc))
+                {
+                    return false;
+                }
+                break;
+            }
+            case H264SeiType::MP_H264_SEI_AMBIENT_VIEWING_ENVIRONMENT:
+            {
+                sei->awe = std::make_shared<H264AmbientViewingEnvironmentSyntax>();
+                if (!DeserializeAmbientViewingEnvironmentSyntax(br, sei->awe))
+                {
+                    return false;
+                }
+                break;
+            }
+            case H264SeiType::MMP_H264_SEI_MASTERING_DISPLAY_COLOUR_VOLUME:
+            {
+                sei->mpvc = std::make_shared<H264MasteringDisplayColourVolumeSyntax>();
+                if (!DeserializeSeiMasteringDisplayColourVolumeSyntax(br, sei->mpvc))
+                {
+                    return false;
+                }
+                break;
             }
             default:
-                // TODO
-                // assert(false);
                 br->Skip(sei->payloadSize * 8);
                 break;
         }
@@ -1469,6 +1514,60 @@ bool H264Deserialize::DeserializeSeiBufferPeriodSyntax(H264BinaryReader::ptr br,
     }
 }
 
+bool H264Deserialize::DeserializeSeiUserDataRegisteredSyntax(H264BinaryReader::ptr br, uint32_t payloadSize, H264SeiUserDataRegisteredSyntax::ptr udr)
+{
+    // See also : ISO 14496/10(2020) - D.1.6 User data registered by ITU-T Rec. T.35 SEI message syntax
+    try
+    {
+        uint32_t i = 0;
+        br->U(8, udr->itu_t_t35_country_code);
+        if (udr->itu_t_t35_country_code != 0xFF)
+        {
+            i = 1;
+        }
+        else
+        {
+            br->U(8, udr->itu_t_t35_country_code_extension_byte);
+            i = 2;
+        }
+        udr->itu_t_t35_payload_byte.resize(payloadSize - i);
+        size_t index = 0;
+        do
+        {
+            br->U(8, udr->itu_t_t35_payload_byte[index]);
+            index++;
+            i++;
+        } while (i<payloadSize);
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
+bool H264Deserialize::DeserializeSeiUserDataUnregisteredSyntax(H264BinaryReader::ptr br, uint32_t payloadSize, H264SeiUserDataUnregisteredSyntax::ptr udn)
+{
+    // See also : ISO 14496/10(2020) - D.1.7 User data unregistered SEI message syntax
+    try
+    {
+        for (size_t i=0; i<16; i++)
+        {
+            br->U(8, udn->uuid_iso_iec_11578[i]);
+        }
+        udn->user_data_payload_byte.resize(payloadSize - 16);
+        for (uint16_t i=16; i<payloadSize; i++)
+        {
+            br->U(8, udn->user_data_payload_byte[i]);
+        }
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
 bool H264Deserialize::DeserializeSeiPictureTimingSyntax(H264BinaryReader::ptr br, H264VuiSyntax::ptr vui, H264SeiPictureTimingSyntax::ptr pt)
 {
     // See also : ISO 14496/10(2020) - D.1.2 Buffering period SEI message syntax
@@ -1633,7 +1732,7 @@ bool H264Deserialize::DeserializeSeiContentLigntLevelInfoSyntax(H264BinaryReader
     }
 }
 
-bool H264Deserialize::DeserializeSeiDisplayOrientationSyntax(H264BinaryReader::ptr br, H264SeiDisplayOrientation::ptr dot)
+bool H264Deserialize::DeserializeSeiDisplayOrientationSyntax(H264BinaryReader::ptr br, H264SeiDisplayOrientationSyntax::ptr dot)
 {
     // See also : ISO 14496/10(2020) - D.1.27 Display orientation SEI message syntax
     try 
@@ -1647,6 +1746,28 @@ bool H264Deserialize::DeserializeSeiDisplayOrientationSyntax(H264BinaryReader::p
             br->UE(dot->display_orientation_repetition_period);
             br->U(1, dot->display_orientation_extension_flag);
         }
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
+bool H264Deserialize::DeserializeSeiMasteringDisplayColourVolumeSyntax(H264BinaryReader::ptr br, H264MasteringDisplayColourVolumeSyntax::ptr mdcv)
+{
+    // See also : ISO 14496/10(2020) - D.1.29 Mastering display colour volume SEI message syntax
+    try 
+    {
+        for (size_t c=0; c<3; c++)
+        {
+            br->U(16, mdcv->display_primaries_x[c]);
+            br->U(16, mdcv->display_primaries_y[c]);
+        }
+        br->U(16, mdcv->white_point_x);
+        br->U(16, mdcv->white_point_y);
+        br->U(32, mdcv->max_display_mastering_luminance);
+        br->U(32, mdcv->min_display_mastering_luminance);
         return true;
     }
     catch (...)
@@ -1714,7 +1835,7 @@ bool H264Deserialize::DeserializeSeiFilmGrainSyntax(H264BinaryReader::ptr br, H2
     }
 }
 
-bool H264Deserialize::DeserializeSeiFramePackingArrangementSyntax(H264BinaryReader::ptr br, H264SeiFramePackingArrangement::ptr fpa)
+bool H264Deserialize::DeserializeSeiFramePackingArrangementSyntax(H264BinaryReader::ptr br, H264SeiFramePackingArrangementSyntax::ptr fpa)
 {
     // See also : ISO 14496/10(2020) - D.1.27 Display orientation SEI message syntax
     try
@@ -1743,6 +1864,36 @@ bool H264Deserialize::DeserializeSeiFramePackingArrangementSyntax(H264BinaryRead
             br->UE(fpa->frame_packing_arrangement_repetition_period);
         }
         br->U(1, fpa->frame_packing_arrangement_extension_flag);
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
+bool H264Deserialize::DeserializeSeiAlternativeTransferCharacteristicsSyntax(H264BinaryReader::ptr br, H264SeiAlternativeTransferCharacteristicsSyntax::ptr atc)
+{
+    // See also : D.1.32 Alternative transfer characteristics SEI message syntax
+    try
+    {
+        br->U(8, atc->preferred_transfer_characteristics);
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
+bool H264Deserialize::DeserializeAmbientViewingEnvironmentSyntax(H264BinaryReader::ptr br, H264AmbientViewingEnvironmentSyntax::ptr awe)
+{
+    // See also : ISO 14496/10(2020) - D.1.34 Ambient viewing environment SEI message syntax
+    try
+    {
+        br->U(32, awe->ambient_illuminance);
+        br->U(16, awe->ambient_light_x);
+        br->U(16, awe->ambient_light_y);
         return true;
     }
     catch (...)

@@ -103,6 +103,17 @@ H264SeiBufferPeriodSyntax::H264SeiBufferPeriodSyntax()
     seq_parameter_set_id = 0;
 }
 
+H264SeiUserDataRegisteredSyntax::H264SeiUserDataRegisteredSyntax()
+{
+    itu_t_t35_country_code = 0;
+    itu_t_t35_country_code_extension_byte = 0;
+}
+
+H264SeiUserDataUnregisteredSyntax::H264SeiUserDataUnregisteredSyntax()
+{
+    memset(uuid_iso_iec_11578, 0, sizeof(uuid_iso_iec_11578));
+}
+
 H264SeiRecoveryPointSyntax::H264SeiRecoveryPointSyntax()
 {
     recovery_frame_cnt = 0;
@@ -134,7 +145,7 @@ H264ContextSyntax::H264ContextSyntax()
 {
 }
 
-H264SeiFramePackingArrangement::H264SeiFramePackingArrangement()
+H264SeiFramePackingArrangementSyntax::H264SeiFramePackingArrangementSyntax()
 {
     frame_packing_arrangement_id = 0;
     frame_packing_arrangement_cancel_flag = 0;
@@ -162,7 +173,19 @@ H264SeiContentLigntLevelInfoSyntax::H264SeiContentLigntLevelInfoSyntax()
     max_pic_average_light_level = 0;
 }
 
-H264SeiDisplayOrientation::H264SeiDisplayOrientation()
+H264SeiAlternativeTransferCharacteristicsSyntax::H264SeiAlternativeTransferCharacteristicsSyntax()
+{
+    preferred_transfer_characteristics = 0;
+}
+
+H264AmbientViewingEnvironmentSyntax::H264AmbientViewingEnvironmentSyntax()
+{
+    ambient_illuminance = 0;
+    ambient_light_x = 0;
+    ambient_light_y = 0;
+}
+
+H264SeiDisplayOrientationSyntax::H264SeiDisplayOrientationSyntax()
 {
     display_orientation_cancel_flag = 0;
     hor_flip = 0;
@@ -170,6 +193,16 @@ H264SeiDisplayOrientation::H264SeiDisplayOrientation()
     anticlockwise_rotation = 0;
     display_orientation_repetition_period = 0;
     display_orientation_extension_flag = 0;
+}
+
+H264MasteringDisplayColourVolumeSyntax::H264MasteringDisplayColourVolumeSyntax()
+{
+    memset(display_primaries_x, 0, sizeof(uint16_t) * 3);
+    memset(display_primaries_y, 0, sizeof(uint16_t) * 3);
+    white_point_x = 0;
+    white_point_y = 0;
+    max_display_mastering_luminance = 0;
+    min_display_mastering_luminance = 0;
 }
 
 H264SeiSyntax::H264SeiSyntax()

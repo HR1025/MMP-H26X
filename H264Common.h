@@ -145,8 +145,10 @@ enum H264SeiType
     MMP_H264_SEI_DEPTH_SAMPLING_INFO                         = 53,
     MMP_H264_SEI_CONSTRAINED_DEPTH_PARAMETER_SET_IDENTIFIER  = 54,
     MMP_H264_SEI_GREEN_METADATA                              = 56,
+    MMP_H264_SEI_MASTERING_DISPLAY_COLOUR_VOLUME             = 137,
     MMP_H264_SEI_CONTENT_LIGHT_LEVEL_INFO                    = 144,
     MMP_H264_SEI_ALTERNATIVE_TRANSFER_CHARACTERISTICS        = 147,
+    MP_H264_SEI_AMBIENT_VIEWING_ENVIRONMENT                  = 148
 };
 
 /**
@@ -330,6 +332,37 @@ public:
 };
 
 /**
+ * @sa ISO 14496/10(2020) - D.1.6 User data registered by ITU-T Rec. T.35 SEI message syntax
+ */
+class H264SeiUserDataRegisteredSyntax
+{
+public:
+    using ptr = std::shared_ptr<H264SeiUserDataRegisteredSyntax>;
+public:
+    H264SeiUserDataRegisteredSyntax();
+    ~H264SeiUserDataRegisteredSyntax() = default;
+public:
+    uint8_t  itu_t_t35_country_code;
+    uint8_t  itu_t_t35_country_code_extension_byte;
+    std::vector<uint8_t> itu_t_t35_payload_byte;
+};
+
+/**
+ * @sa ISO 14496/10(2020) - D.1.7 User data unregistered SEI message syntax
+ */
+class H264SeiUserDataUnregisteredSyntax
+{
+public:
+    using ptr = std::shared_ptr<H264SeiUserDataUnregisteredSyntax>;
+public:
+    H264SeiUserDataUnregisteredSyntax();
+    ~H264SeiUserDataUnregisteredSyntax() = default;
+public:
+    uint8_t uuid_iso_iec_11578[16];
+    std::vector<uint8_t> user_data_payload_byte;
+};
+
+/**
  * @sa ISO 14496/10(2020) - D.1.8 Recovery point SEI message syntax
  */
 class H264SeiRecoveryPointSyntax
@@ -380,13 +413,13 @@ public:
 /**
  * @sa  ISO 14496/10(2020) - D.1.26 Frame packing arrangement SEI message syntax
  */
-class H264SeiFramePackingArrangement
+class H264SeiFramePackingArrangementSyntax
 {
 public:
-    using ptr = std::shared_ptr<H264SeiFramePackingArrangement>;
+    using ptr = std::shared_ptr<H264SeiFramePackingArrangementSyntax>;
 public:
-    H264SeiFramePackingArrangement();
-    ~H264SeiFramePackingArrangement() = default;
+    H264SeiFramePackingArrangementSyntax();
+    ~H264SeiFramePackingArrangementSyntax() = default;
 public:
     uint32_t  frame_packing_arrangement_id;
     uint8_t   frame_packing_arrangement_cancel_flag;
@@ -409,6 +442,44 @@ public:
 };
 
 /**
+ * @sa ISO 14496/10(2020) - D.1.27 Display orientation SEI message syntax
+ */
+class H264SeiDisplayOrientationSyntax
+{
+public:
+    using ptr = std::shared_ptr<H264SeiDisplayOrientationSyntax>;
+public:
+    H264SeiDisplayOrientationSyntax();
+    ~H264SeiDisplayOrientationSyntax() = default;
+public:
+    uint8_t   display_orientation_cancel_flag;
+    uint8_t   hor_flip;
+    uint8_t   ver_flip;
+    uint16_t  anticlockwise_rotation;
+    uint32_t  display_orientation_repetition_period;
+    uint8_t   display_orientation_extension_flag;
+};
+
+/**
+ * @sa ISO 14496/10(2020) - D.1.29 Mastering display colour volume SEI message syntax
+ */
+class H264MasteringDisplayColourVolumeSyntax
+{
+public:
+    using ptr = std::shared_ptr<H264MasteringDisplayColourVolumeSyntax>;
+public:
+    H264MasteringDisplayColourVolumeSyntax();
+    ~H264MasteringDisplayColourVolumeSyntax() = default;
+public:
+    uint16_t  display_primaries_x[3];
+    uint16_t  display_primaries_y[3];
+    uint16_t  white_point_x;
+    uint16_t  white_point_y;
+    uint32_t  max_display_mastering_luminance;
+    uint32_t  min_display_mastering_luminance;
+};
+
+/**
  * @sa  ISO 14496/10(2020) - D.1.31 Content light level information SEI message syntax
  */
 class H264SeiContentLigntLevelInfoSyntax
@@ -424,22 +495,33 @@ public:
 };
 
 /**
- * @sa ISO 14496/10(2020) - D.1.27 Display orientation SEI message syntax
+ * @sa ISO 14496/10(2020) - D.1.32 Alternative transfer characteristics SEI message syntax
  */
-class H264SeiDisplayOrientation
+class H264SeiAlternativeTransferCharacteristicsSyntax
 {
 public:
-    using ptr = std::shared_ptr<H264SeiDisplayOrientation>;
+    using ptr = std::shared_ptr<H264SeiAlternativeTransferCharacteristicsSyntax>;
 public:
-    H264SeiDisplayOrientation();
-    ~H264SeiDisplayOrientation() = default;
+    H264SeiAlternativeTransferCharacteristicsSyntax();
+    ~H264SeiAlternativeTransferCharacteristicsSyntax() = default;
 public:
-    uint8_t   display_orientation_cancel_flag;
-    uint8_t   hor_flip;
-    uint8_t   ver_flip;
-    uint16_t  anticlockwise_rotation;
-    uint32_t  display_orientation_repetition_period;
-    uint8_t   display_orientation_extension_flag;
+    uint8_t preferred_transfer_characteristics;
+};
+
+/**
+ * @sa  ISO 14496/10(2020) - D.1.34 Ambient viewing environment SEI message syntax
+ */
+class H264AmbientViewingEnvironmentSyntax
+{
+public:
+    using ptr = std::shared_ptr<H264AmbientViewingEnvironmentSyntax>;
+public:
+    H264AmbientViewingEnvironmentSyntax();
+    ~H264AmbientViewingEnvironmentSyntax() = default;
+public:
+    uint32_t  ambient_illuminance;
+    uint16_t  ambient_light_x;
+    uint16_t  ambient_light_y;
 };
 
 /**
@@ -456,13 +538,18 @@ public:
     uint64_t  payloadType;
     uint64_t  payloadSize;
 public:
-    H264SeiBufferPeriodSyntax::ptr            bp;
-    H264SeiPictureTimingSyntax::ptr           pt;
-    H264SeiRecoveryPointSyntax::ptr           rp;
-    H264SeiContentLigntLevelInfoSyntax::ptr   clli;
-    H264SeiDisplayOrientation::ptr            dot;
-    H264SeiFilmGrainSyntax::ptr               fg;
-    H264SeiFramePackingArrangement::ptr       fpa;
+    H264SeiBufferPeriodSyntax::ptr                        bp;
+    H264SeiPictureTimingSyntax::ptr                       pt;
+    H264SeiRecoveryPointSyntax::ptr                       rp;
+    H264SeiContentLigntLevelInfoSyntax::ptr               clli;
+    H264SeiDisplayOrientationSyntax::ptr                  dot;
+    H264SeiFilmGrainSyntax::ptr                           fg;
+    H264SeiFramePackingArrangementSyntax::ptr             fpa;
+    H264MasteringDisplayColourVolumeSyntax::ptr           mpvc;
+    H264SeiUserDataRegisteredSyntax::ptr                  udr;
+    H264SeiUserDataUnregisteredSyntax::ptr                udn;
+    H264SeiAlternativeTransferCharacteristicsSyntax::ptr  atc;
+    H264AmbientViewingEnvironmentSyntax::ptr              awe;
 };
 
 /**
