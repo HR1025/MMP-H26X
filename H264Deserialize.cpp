@@ -50,7 +50,14 @@ bool H264Deserialize::DeserializeByteStreamNalUnit(H264BinaryReader::ptr br, H26
         br->U(24, next_24_bits, true);
         while (next_24_bits != 0x000001)
         {
-            br->Skip(8);
+            if ((next_24_bits & 0xFFFF) == 0)
+            {
+                br->Skip(8);
+            }
+            else
+            {
+                br->Skip(32);
+            }
             br->U(24, next_24_bits, true);
         }
         br->Skip(24); // start_code_prefix_one_3bytes /* equal to 0x000001 */
@@ -63,7 +70,14 @@ bool H264Deserialize::DeserializeByteStreamNalUnit(H264BinaryReader::ptr br, H26
             br->U(24, next_24_bits, true);
             if (next_24_bits != 0x000001)
             {
-                br->Skip(8);
+                if ((next_24_bits & 0xFFFF) == 0)
+                {
+                    br->Skip(8);
+                }
+                else
+                {
+                    br->Skip(32);
+                }
             }
             else
             {
