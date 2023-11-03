@@ -53,11 +53,16 @@ private:
 private: /* SEI */
     bool DeserializeSeiBufferPeriodSyntax(H264BinaryReader::ptr br, H264SeiBufferPeriodSyntax::ptr bp);
     bool DeserializeSeiPictureTimingSyntax(H264BinaryReader::ptr br, H264VuiSyntax::ptr vui, H264SeiPictureTimingSyntax::ptr pt);
+    bool DeserializeSeiUserDataRegisteredSyntax(H264BinaryReader::ptr br, uint32_t payloadSize, H264SeiUserDataRegisteredSyntax::ptr udr);
+    bool DeserializeSeiUserDataUnregisteredSyntax(H264BinaryReader::ptr br, uint32_t payloadSize, H264SeiUserDataUnregisteredSyntax::ptr udn);
     bool DeserializeSeiRecoveryPointSyntax(H264BinaryReader::ptr br, H264SeiRecoveryPointSyntax::ptr pt);
     bool DeserializeSeiContentLigntLevelInfoSyntax(H264BinaryReader::ptr br, H264SeiContentLigntLevelInfoSyntax::ptr clli);
-    bool DeserializeSeiDisplayOrientationSyntax(H264BinaryReader::ptr br, H264SeiDisplayOrientation::ptr dot);
+    bool DeserializeSeiDisplayOrientationSyntax(H264BinaryReader::ptr br, H264SeiDisplayOrientationSyntax::ptr dot);
+    bool DeserializeSeiMasteringDisplayColourVolumeSyntax(H264BinaryReader::ptr br, H264MasteringDisplayColourVolumeSyntax::ptr mdcv);
     bool DeserializeSeiFilmGrainSyntax(H264BinaryReader::ptr br, H264SeiFilmGrainSyntax::ptr fg);
-    bool DeserializeSeiFramePackingArrangementSyntax(H264BinaryReader::ptr br, H264SeiFramePackingArrangement::ptr fpa);
+    bool DeserializeSeiFramePackingArrangementSyntax(H264BinaryReader::ptr br, H264SeiFramePackingArrangementSyntax::ptr fpa);
+    bool DeserializeSeiAlternativeTransferCharacteristicsSyntax(H264BinaryReader::ptr br, H264SeiAlternativeTransferCharacteristicsSyntax::ptr atc);
+    bool DeserializeAmbientViewingEnvironmentSyntax(H264BinaryReader::ptr br, H264AmbientViewingEnvironmentSyntax::ptr awe);
 private:
     H264ContextSyntax::ptr _contex;
 };
