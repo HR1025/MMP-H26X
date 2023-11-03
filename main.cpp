@@ -137,10 +137,17 @@ size_t CacheFileH264ByteReader::Read(void* data, size_t bytes)
     else
     {
         _offset = _ifs.tellg();
-        _ifs.read((char*)_buf, kBufSize);
+        _ifs.readsome((char*)_buf, kBufSize);
         _cur = 0;
         _len = _ifs.gcount(); 
-        return Read(data, bytes);
+        if (_len == 0) /* eof */
+        {
+            return 0;
+        }
+        else
+        {
+            return Read(data, bytes);
+        }
     }
 }
 
@@ -150,7 +157,7 @@ bool CacheFileH264ByteReader::Seek(size_t offset)
     {
         _ifs.seekg(offset);
         _offset = _ifs.tellg();
-        _ifs.read((char*)_buf, kBufSize);
+        _ifs.readsome((char*)_buf, kBufSize);
         _cur = 0;
         _len = _ifs.gcount(); 
         return _offset == offset;
@@ -159,7 +166,7 @@ bool CacheFileH264ByteReader::Seek(size_t offset)
     {
         _ifs.seekg(offset);
         _offset = _ifs.tellg();
-        _ifs.read((char*)_buf, kBufSize);
+        _ifs.readsome((char*)_buf, kBufSize);
         _cur = 0;
         _len = _ifs.gcount(); 
         return _offset == offset;
@@ -178,7 +185,7 @@ size_t CacheFileH264ByteReader::Tell()
 
 bool CacheFileH264ByteReader::Eof()
 {
-    return _ifs.eof() && _cur == _len;
+    return _len == 0 || (_ifs.eof() && _cur == _len);
 }
 
 } // namespace Codec
