@@ -54,6 +54,10 @@ bool H264Deserialize::DeserializeByteStreamNalUnit(H264BinaryReader::ptr br, H26
             {
                 br->Skip(8);
             }
+            else if ((next_24_bits & 0xFF) == 0)
+            {
+                br->Skip(16);
+            }
             else
             {
                 br->Skip(32);
@@ -73,6 +77,10 @@ bool H264Deserialize::DeserializeByteStreamNalUnit(H264BinaryReader::ptr br, H26
                 if ((next_24_bits & 0xFFFF) == 0)
                 {
                     br->Skip(8);
+                }
+                else if ((next_24_bits & 0xFF) == 0)
+                {
+                    br->Skip(16);
                 }
                 else
                 {
@@ -788,8 +796,8 @@ bool H264Deserialize::DeserializeSliceHeaderSyntax(H264BinaryReader::ptr br, H26
             br->UE(slice->cabac_init_idc);
             {
                 // Hint :  The value of cabac_init_idc shall be in the range of 0 to 2, inclusive.
-                // FIXME:
-                // MPP_H264_SYNTAXT_STRICT_CHECK(/* slice->cabac_init_idc >= 0 && */ slice->cabac_init_idc <= 2, "[slice] cabac_init_idc out of range", return false);
+                // WORKAROUND : cabac_init_idc may be other value, for example 7 ???
+                MPP_H264_SYNTAXT_NORMAL_CHECK(/* slice->cabac_init_idc >= 0 && */ slice->cabac_init_idc <= 2, "[slice] cabac_init_idc out of range", ;);
             }
         }
         br->SE(slice->slice_qp_delta);
@@ -845,8 +853,6 @@ bool H264Deserialize::DeserializeDecodedReferencePictureMarkingSyntax(H264Binary
                 do
                 {
                     br->UE(memory_management_control_operation);
-                    // FIXME:
-                    // MPP_H264_SYNTAXT_STRICT_CHECK(memory_management_control_operation >= 0 && memory_management_control_operation <= 6, "[drpm] memory_management_control_operation out of range", return false);
                     if (memory_management_control_operation == 1 ||
                         memory_management_control_operation == 3
                     )

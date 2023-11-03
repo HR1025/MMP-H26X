@@ -308,6 +308,10 @@ bool H264BinaryReader::more_rbsp_data()
                     {
                         Skip(8);
                     }
+                    else if ((next_24_bits & 0xFF) == 0)
+                    {
+                        Skip(16);
+                    }
                     else
                     {
                         Skip(32);
