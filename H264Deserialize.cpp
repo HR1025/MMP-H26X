@@ -1558,7 +1558,7 @@ bool H264Deserialize::DeserializeSeiUserDataUnregisteredSyntax(H264BinaryReader:
         udn->user_data_payload_byte.resize(payloadSize - 16);
         for (uint16_t i=16; i<payloadSize; i++)
         {
-            br->U(8, udn->user_data_payload_byte[i]);
+            br->U(8, udn->user_data_payload_byte[i-16]);
         }
         return true;
     }
