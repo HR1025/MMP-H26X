@@ -8,12 +8,13 @@
 
 #pragma once
 
-#include <cstdint>
+#include <set>
 #include <map>
-#include <unordered_map>
 #include <string>
 #include <vector>
 #include <memory>
+#include <cstdint>
+#include <unordered_map>
 
 namespace Mmp
 {
@@ -693,6 +694,7 @@ public:
     uint8_t   no_output_of_prior_pics_flag;
     uint8_t   long_term_reference_flag;
     uint8_t   adaptive_ref_pic_marking_mode_flag;
+    std::set<uint32_t> memory_management_control_operations;
     uint32_t  difference_of_pic_nums_minus1;
     uint32_t  long_term_pic_num;
     uint32_t  long_term_frame_idx;
@@ -898,6 +900,27 @@ public:
     std::unordered_map<int32_t, H264PpsSyntax::ptr> ppsSet;
     H264SpsSyntax::ptr sps;
     H264PpsSyntax::ptr pps;
+};
+
+/**
+ * @sa ISO 14496/10(2020) - 8.2.1 Decoding process for picture order count
+ */
+class H264PocContext
+{
+public:
+    using ptr = std::shared_ptr<H264PocContext>;
+public:
+    H264PocContext() = default;
+    ~H264PocContext() = default;
+public:
+    int32_t  pic_order_cnt_lsb;
+    uint64_t prevFrameNum;
+public:
+    int32_t  prevPicOrderCntMsb;  // when pic_order_cnt_type == 0
+    int32_t  prevFrameNumOffset;  // when pic_order_cnt_type == 1
+public:
+    int32_t  TopFieldOrderCnt;
+    int32_t  BottomFieldOrderCnt;
 };
 
 } // namespace Codec
