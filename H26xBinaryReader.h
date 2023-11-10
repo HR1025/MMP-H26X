@@ -1,31 +1,28 @@
 //
-// H264BinaryReader.h
+// H26xBinaryReader.h
 //
 // Library: Coedec
-// Package: H264
-// Module:  H264
+// Package: H26x
+// Module:  H26x
 // 
 
 #pragma once
 
 #include "H264Common.h"
-#include "AbstractH264ByteReader.h"
+#include "AbstractH26xByteReader.h"
 
 namespace Mmp
 {
 namespace Codec
 {
 
-/**
- * @sa ISO 14496/10(2020) - 7.2 Specification of syntax functions, categories, and descriptors
- */
-class H264BinaryReader
+class H26xBinaryReader
 {
 public:
-    using ptr = std::shared_ptr<H264BinaryReader>;
+    using ptr = std::shared_ptr<H26xBinaryReader>;
 public:
-    explicit H264BinaryReader(AbstractH264ByteReader::ptr reader);
-    virtual ~H264BinaryReader();
+    explicit H26xBinaryReader(AbstractH26xByteReader::ptr reader);
+    virtual ~H26xBinaryReader();
 public:
     void UE(uint32_t& value);
 public:
@@ -68,7 +65,7 @@ private:
 private:
     bool _inNalUnit;
 private:
-    AbstractH264ByteReader::ptr _reader;
+    AbstractH26xByteReader::ptr _reader;
 };
 
 } // namespace Codec

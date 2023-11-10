@@ -1,4 +1,4 @@
-#include "H264BinaryReader.h"
+#include "H26xBinaryReader.h"
 
 #include <cassert>
 #include <cstdint>
@@ -46,7 +46,7 @@ static uint8_t kLeftAndLookUp[8] = {0xFF, 0x7F, 0x3F, 0x1F, 0x0F, 0x07, 0x03, 0x
 static uint8_t kRightAndLookUp[8] = {0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE, 0xFF};
 
 
-H264BinaryReader::H264BinaryReader(AbstractH264ByteReader::ptr reader)
+H26xBinaryReader::H26xBinaryReader(AbstractH26xByteReader::ptr reader)
 {
     _rbspEndByte = 0;
     _curBitPos = 8;
@@ -56,12 +56,12 @@ H264BinaryReader::H264BinaryReader(AbstractH264ByteReader::ptr reader)
     _zeroCount = 0;
 }
 
-H264BinaryReader::~H264BinaryReader()
+H26xBinaryReader::~H26xBinaryReader()
 {
 
 }
 
-void H264BinaryReader::UE(uint32_t& value)
+void H26xBinaryReader::UE(uint32_t& value)
 {
     // See also : ISO 14496/10(2020) - 9.1 Parsing process for Exp-Golomb codes
     int32_t leadingZeroBits = -1;
@@ -75,7 +75,7 @@ void H264BinaryReader::UE(uint32_t& value)
     value = (1 << leadingZeroBits) - 1 + tmp;
 }
 
-void H264BinaryReader::SE(int32_t& value)
+void H26xBinaryReader::SE(int32_t& value)
 {
     // See also : ISO 14496/10(2020) -  Table 9-3 – Assignment of syntax element to codeNum for signed Exp-Golomb coded syntax elements se(v)}
     uint32_t codeNum = 0;
@@ -128,7 +128,7 @@ void H264BinaryReader::SE(int32_t& value)
 
 #define MMP_I_PRED_OPERATION(bits, value)       MMP_U_PRED_OPERATION(bits, value)
 
-void H264BinaryReader::U(size_t bits, uint64_t& value)
+void H26xBinaryReader::U(size_t bits, uint64_t& value)
 {
     if (bits > 64)
     {
@@ -137,7 +137,7 @@ void H264BinaryReader::U(size_t bits, uint64_t& value)
     MMP_U_OPERATION(bits, value);
 }
 
-void H264BinaryReader::U(size_t bits, uint32_t& value, bool probe)
+void H26xBinaryReader::U(size_t bits, uint32_t& value, bool probe)
 {
     if (bits > 32)
     {
@@ -153,7 +153,7 @@ void H264BinaryReader::U(size_t bits, uint32_t& value, bool probe)
     }
 }
 
-void H264BinaryReader::U(size_t bits, uint16_t& value)
+void H26xBinaryReader::U(size_t bits, uint16_t& value)
 {
     if (bits > 16)
     {
@@ -162,7 +162,7 @@ void H264BinaryReader::U(size_t bits, uint16_t& value)
     MMP_U_OPERATION(bits, value);
 }
 
-void H264BinaryReader::U(size_t bits, uint8_t& value, bool probe)
+void H26xBinaryReader::U(size_t bits, uint8_t& value, bool probe)
 {
     if (bits > 8)
     {
@@ -178,7 +178,7 @@ void H264BinaryReader::U(size_t bits, uint8_t& value, bool probe)
     }
 }
 
-void H264BinaryReader::I(size_t bits, int64_t& value)
+void H26xBinaryReader::I(size_t bits, int64_t& value)
 {
     if (bits > 64)
     {
@@ -187,7 +187,7 @@ void H264BinaryReader::I(size_t bits, int64_t& value)
     MMP_I_OPERATION(bits, value);
 }
 
-void H264BinaryReader::I(size_t bits, int32_t& value)
+void H26xBinaryReader::I(size_t bits, int32_t& value)
 {
     if (bits > 32)
     {
@@ -196,7 +196,7 @@ void H264BinaryReader::I(size_t bits, int32_t& value)
     MMP_I_OPERATION(bits, value);
 }
 
-void H264BinaryReader::I(size_t bits, int16_t& value)
+void H26xBinaryReader::I(size_t bits, int16_t& value)
 {
     if (bits > 16)
     {
@@ -205,7 +205,7 @@ void H264BinaryReader::I(size_t bits, int16_t& value)
     MMP_I_OPERATION(bits, value);
 }
 
-void H264BinaryReader::I(size_t bits, int8_t& value)
+void H26xBinaryReader::I(size_t bits, int8_t& value)
 {
     if (bits > 8)
     {
@@ -219,12 +219,12 @@ void H264BinaryReader::I(size_t bits, int8_t& value)
 #undef MMP_U_PRED_OPERATION
 #undef MMP_U_OPERATION
 
-void H264BinaryReader::B8(uint8_t& value)
+void H26xBinaryReader::B8(uint8_t& value)
 {
     U(8, value);
 }
 
-void H264BinaryReader::Skip(size_t bits)
+void H26xBinaryReader::Skip(size_t bits)
 {
     if (bits + _curBitPos < 8) // 不需要跳转至下一个字节
     {
@@ -245,29 +245,29 @@ void H264BinaryReader::Skip(size_t bits)
     _curBitPos = bits % 8;
 }
 
-void H264BinaryReader::MoveNextByte()
+void H26xBinaryReader::MoveNextByte()
 {
     _curBitPos = 8;
     ReadOneByteAuto();
 }
 
-bool H264BinaryReader::Eof()
+bool H26xBinaryReader::Eof()
 {
     return _reader->Eof();
 }
 
-void H264BinaryReader::BeginNalUnit()
+void H26xBinaryReader::BeginNalUnit()
 {
     _inNalUnit = true;
 }
 
 
-void H264BinaryReader::EndNalUnit()
+void H26xBinaryReader::EndNalUnit()
 {
     _inNalUnit = false;
 }
 
-bool H264BinaryReader::more_rbsp_data()
+bool H26xBinaryReader::more_rbsp_data()
 {
     // Hint :
     // more_rbsp_data( ) is specified as follows:
@@ -352,7 +352,7 @@ bool H264BinaryReader::more_rbsp_data()
     return true;
 }
 
-void H264BinaryReader::rbsp_trailing_bits()
+void H26xBinaryReader::rbsp_trailing_bits()
 {
     // See also : ISO 14496/10(2020) - 7.3.2.11 RBSP trailing bits syntax
     uint8_t rbsp_stop_one_bit = 0;
@@ -366,7 +366,7 @@ void H264BinaryReader::rbsp_trailing_bits()
     }
 }
 
-bool H264BinaryReader::more_data_in_byte_stream()
+bool H26xBinaryReader::more_data_in_byte_stream()
 {
     // Hint :
     // more_data_in_byte_stream( ), which is used only in the byte stream NAL unit syntax structure specified in Annex B, is 
@@ -376,13 +376,13 @@ bool H264BinaryReader::more_data_in_byte_stream()
     return !_reader->Eof();
 }
 
-bool H264BinaryReader::End()
+bool H26xBinaryReader::End()
 {
     assert(false);
     return true;
 }
 
-bool H264BinaryReader::ReadBytes(size_t byte, uint8_t* value)
+bool H26xBinaryReader::ReadBytes(size_t byte, uint8_t* value)
 {
     size_t readByte = _reader->Read(value, byte);
     if (readByte != byte)
@@ -392,7 +392,7 @@ bool H264BinaryReader::ReadBytes(size_t byte, uint8_t* value)
     return readByte == byte;
 }
 
-void H264BinaryReader::ReadOneByteAuto(bool force)
+void H26xBinaryReader::ReadOneByteAuto(bool force)
 {
     if (_curBitPos == 8 || force)
     {

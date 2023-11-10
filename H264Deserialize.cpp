@@ -41,7 +41,7 @@ H264Deserialize::~H264Deserialize()
 
 }
 
-bool H264Deserialize::DeserializeByteStreamNalUnit(H264BinaryReader::ptr br, H264NalSyntax::ptr nal)
+bool H264Deserialize::DeserializeByteStreamNalUnit(H26xBinaryReader::ptr br, H264NalSyntax::ptr nal)
 {
     // See also : ISO 14496/10(2020) - B.1.1 Byte stream NAL unit syntax
     try
@@ -104,7 +104,7 @@ bool H264Deserialize::DeserializeByteStreamNalUnit(H264BinaryReader::ptr br, H26
     }
 }
 
-bool H264Deserialize::DeserializeNalSyntax(H264BinaryReader::ptr br, H264NalSyntax::ptr nal)
+bool H264Deserialize::DeserializeNalSyntax(H26xBinaryReader::ptr br, H264NalSyntax::ptr nal)
 {
     // See also : ISO 14496/10(2020) - 7.3.1 NAL unit syntax
     try
@@ -213,7 +213,7 @@ bool H264Deserialize::DeserializeNalSyntax(H264BinaryReader::ptr br, H264NalSynt
     }
 }
 
-bool H264Deserialize::DeserializeHrdSyntax(H264BinaryReader::ptr br, H264HrdSyntax::ptr hrd)
+bool H264Deserialize::DeserializeHrdSyntax(H26xBinaryReader::ptr br, H264HrdSyntax::ptr hrd)
 {
     // See also : ISO 14496/10(2020) - E.1.2 HRD parameters syntax
     try
@@ -250,7 +250,7 @@ bool H264Deserialize::DeserializeHrdSyntax(H264BinaryReader::ptr br, H264HrdSynt
     }
 }
 
-bool H264Deserialize::DeserializeVuiSyntax(H264BinaryReader::ptr br, H264VuiSyntax::ptr vui)
+bool H264Deserialize::DeserializeVuiSyntax(H26xBinaryReader::ptr br, H264VuiSyntax::ptr vui)
 {
     constexpr uint8_t Extended_SAR = 255; // Table E-1 – Meaning of sample aspect ratio indicator
 
@@ -391,7 +391,7 @@ bool H264Deserialize::DeserializeVuiSyntax(H264BinaryReader::ptr br, H264VuiSynt
     }
 }
 
-bool H264Deserialize::DeserializeSeiSyntax(H264BinaryReader::ptr br, H264SeiSyntax::ptr sei)
+bool H264Deserialize::DeserializeSeiSyntax(H26xBinaryReader::ptr br, H264SeiSyntax::ptr sei)
 {
     // See also : ISO 14496/10(2020) - 7.3.2.3.1 Supplemental enhancement information message syntax
     try
@@ -534,7 +534,7 @@ bool H264Deserialize::DeserializeSeiSyntax(H264BinaryReader::ptr br, H264SeiSynt
     }
 }
 
-bool H264Deserialize::DeserializeSpsSyntax(H264BinaryReader::ptr br, H264SpsSyntax::ptr sps)
+bool H264Deserialize::DeserializeSpsSyntax(H26xBinaryReader::ptr br, H264SpsSyntax::ptr sps)
 {
     // See also : ISO 14496/10(2020) - 7.3.2.1.1 Sequence parameter set data syntax
     try
@@ -674,7 +674,7 @@ bool H264Deserialize::DeserializeSpsSyntax(H264BinaryReader::ptr br, H264SpsSynt
     }
 }
 
-bool H264Deserialize::DeserializeSliceHeaderSyntax(H264BinaryReader::ptr br, H264NalSyntax::ptr nal, H264SliceHeaderSyntax::ptr slice)
+bool H264Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H264NalSyntax::ptr nal, H264SliceHeaderSyntax::ptr slice)
 {
     // See aslo : ISO 14496/10(2020) - 7.3.3 Slice header syntax
     try
@@ -832,7 +832,7 @@ bool H264Deserialize::DeserializeSliceHeaderSyntax(H264BinaryReader::ptr br, H26
     }
 }
 
-bool H264Deserialize::DeserializeDecodedReferencePictureMarkingSyntax(H264BinaryReader::ptr br, H264NalSyntax::ptr nal, H264DecodedReferencePictureMarkingSyntax::ptr drpm)
+bool H264Deserialize::DeserializeDecodedReferencePictureMarkingSyntax(H26xBinaryReader::ptr br, H264NalSyntax::ptr nal, H264DecodedReferencePictureMarkingSyntax::ptr drpm)
 {
     // See also : ISO 14496/10(2020) - 7.3.3.3 Decoded reference picture marking syntax
     try
@@ -885,7 +885,7 @@ bool H264Deserialize::DeserializeDecodedReferencePictureMarkingSyntax(H264Binary
     }
 }
 
-bool H264Deserialize::DeserializeSubSpsSyntax(H264BinaryReader::ptr br, H264SpsSyntax::ptr sps, H264SubSpsSyntax::ptr subSps)
+bool H264Deserialize::DeserializeSubSpsSyntax(H26xBinaryReader::ptr br, H264SpsSyntax::ptr sps, H264SubSpsSyntax::ptr subSps)
 {
     // See also : ISO 14496/10(2020) - 7.3.2.1.3 Subset sequence parameter set RBSP syntax
     try
@@ -948,7 +948,7 @@ bool H264Deserialize::DeserializeSubSpsSyntax(H264BinaryReader::ptr br, H264SpsS
     }
 }
 
-bool H264Deserialize::DeserializeSpsMvcSyntax(H264BinaryReader::ptr br, H264SpsMvcSyntax::ptr mvc)
+bool H264Deserialize::DeserializeSpsMvcSyntax(H26xBinaryReader::ptr br, H264SpsMvcSyntax::ptr mvc)
 {
     // See also : ISO 14496/10(2020) - G.3.3.2.1.4 Sequence parameter set MVC extension syntax
     try
@@ -1033,7 +1033,7 @@ bool H264Deserialize::DeserializeSpsMvcSyntax(H264BinaryReader::ptr br, H264SpsM
     
 }
 
-bool H264Deserialize::DeserializeMvcVuiSyntax(H264BinaryReader::ptr br, H264MvcVuiSyntax::ptr mvcVui)
+bool H264Deserialize::DeserializeMvcVuiSyntax(H26xBinaryReader::ptr br, H264MvcVuiSyntax::ptr mvcVui)
 {
     // See also : ISO 14496/10(2020) - G.10.1 MVC VUI parameters extension syntax
     try
@@ -1102,7 +1102,7 @@ bool H264Deserialize::DeserializeMvcVuiSyntax(H264BinaryReader::ptr br, H264MvcV
     }
 }
 
-bool H264Deserialize::DeserializePpsSyntax(H264BinaryReader::ptr br, H264PpsSyntax::ptr pps)
+bool H264Deserialize::DeserializePpsSyntax(H26xBinaryReader::ptr br, H264PpsSyntax::ptr pps)
 {
     // See aslo : ISO 14496/10(2020) - 7.3.2.2 Picture parameter set RBSP syntax
     try
@@ -1214,7 +1214,7 @@ bool H264Deserialize::DeserializePpsSyntax(H264BinaryReader::ptr br, H264PpsSynt
     }
 }
 
-bool H264Deserialize::DeserializeNalSvcSyntax(H264BinaryReader::ptr br, H264NalSvcSyntax::ptr svc)
+bool H264Deserialize::DeserializeNalSvcSyntax(H26xBinaryReader::ptr br, H264NalSvcSyntax::ptr svc)
 {
     // See also : ISO 14496/10(2020) - F.3.3.1.1 NAL unit header SVC extension syntax
     try
@@ -1237,7 +1237,7 @@ bool H264Deserialize::DeserializeNalSvcSyntax(H264BinaryReader::ptr br, H264NalS
     }
 }
 
-bool H264Deserialize::DeserializeNal3dAvcSyntax(H264BinaryReader::ptr br, H264Nal3dAvcSyntax::ptr avc)
+bool H264Deserialize::DeserializeNal3dAvcSyntax(H26xBinaryReader::ptr br, H264Nal3dAvcSyntax::ptr avc)
 {
     // See also : ISO 14496/10(2020) - I.3.3.1.1 NAL unit header 3D-AVC extension syntax
     try
@@ -1256,7 +1256,7 @@ bool H264Deserialize::DeserializeNal3dAvcSyntax(H264BinaryReader::ptr br, H264Na
     }
 }
 
-bool H264Deserialize::DeserializeNalMvcSyntax(H264BinaryReader::ptr br, H264NalMvcSyntax::ptr mvc)
+bool H264Deserialize::DeserializeNalMvcSyntax(H26xBinaryReader::ptr br, H264NalMvcSyntax::ptr mvc)
 {
     // See also : ISO 14496/10(2020) - I.3.3.1.1 NAL unit header 3D-AVC extension syntax
     try
@@ -1277,7 +1277,7 @@ bool H264Deserialize::DeserializeNalMvcSyntax(H264BinaryReader::ptr br, H264NalM
     
 }
 
-bool H264Deserialize::DeserializeScalingListSyntax(H264BinaryReader::ptr br, std::vector<int32_t>& scalingList, int32_t sizeOfScalingList, int32_t& useDefaultScalingMatrixFlag)
+bool H264Deserialize::DeserializeScalingListSyntax(H26xBinaryReader::ptr br, std::vector<int32_t>& scalingList, int32_t sizeOfScalingList, int32_t& useDefaultScalingMatrixFlag)
 {
     // See aslo : ISO 14496/10(2020) - 7.3.2.1.1.1 Scaling list syntax
     try
@@ -1305,7 +1305,7 @@ bool H264Deserialize::DeserializeScalingListSyntax(H264BinaryReader::ptr br, std
     }
 }
 
-bool H264Deserialize::DeserializeReferencePictureListModificationSyntax(H264BinaryReader::ptr br, H264SliceHeaderSyntax::ptr slice, H264ReferencePictureListModificationSyntax::ptr rplm)
+bool H264Deserialize::DeserializeReferencePictureListModificationSyntax(H26xBinaryReader::ptr br, H264SliceHeaderSyntax::ptr slice, H264ReferencePictureListModificationSyntax::ptr rplm)
 {
     // See also : ISO 14496/10(2020) - 7.3.3.1 Reference picture list modification syntax
     try
@@ -1362,7 +1362,7 @@ bool H264Deserialize::DeserializeReferencePictureListModificationSyntax(H264Bina
     }
 }
 
-bool H264Deserialize::DeserializePredictionWeightTableSyntax(H264BinaryReader::ptr br, H264SpsSyntax::ptr sps, H264SliceHeaderSyntax::ptr slice, H264PredictionWeightTableSyntax::ptr pwt)
+bool H264Deserialize::DeserializePredictionWeightTableSyntax(H26xBinaryReader::ptr br, H264SpsSyntax::ptr sps, H264SliceHeaderSyntax::ptr slice, H264PredictionWeightTableSyntax::ptr pwt)
 {
     // See also : ISO 14496/10(2020) - 7.3.3.2 Prediction weight table syntax
     try
@@ -1452,7 +1452,7 @@ bool H264Deserialize::DeserializePredictionWeightTableSyntax(H264BinaryReader::p
     }
 }
 
-bool H264Deserialize::DeserializeSeiBufferPeriodSyntax(H264BinaryReader::ptr br, H264SeiBufferPeriodSyntax::ptr bp)
+bool H264Deserialize::DeserializeSeiBufferPeriodSyntax(H26xBinaryReader::ptr br, H264SeiBufferPeriodSyntax::ptr bp)
 {
     // See also : ISO 14496/10(2020) - D.1.2 Buffering period SEI message syntax
     try
@@ -1520,7 +1520,7 @@ bool H264Deserialize::DeserializeSeiBufferPeriodSyntax(H264BinaryReader::ptr br,
     }
 }
 
-bool H264Deserialize::DeserializeSeiUserDataRegisteredSyntax(H264BinaryReader::ptr br, uint32_t payloadSize, H264SeiUserDataRegisteredSyntax::ptr udr)
+bool H264Deserialize::DeserializeSeiUserDataRegisteredSyntax(H26xBinaryReader::ptr br, uint32_t payloadSize, H264SeiUserDataRegisteredSyntax::ptr udr)
 {
     // See also : ISO 14496/10(2020) - D.1.6 User data registered by ITU-T Rec. T.35 SEI message syntax
     try
@@ -1552,7 +1552,7 @@ bool H264Deserialize::DeserializeSeiUserDataRegisteredSyntax(H264BinaryReader::p
     }
 }
 
-bool H264Deserialize::DeserializeSeiUserDataUnregisteredSyntax(H264BinaryReader::ptr br, uint32_t payloadSize, H264SeiUserDataUnregisteredSyntax::ptr udn)
+bool H264Deserialize::DeserializeSeiUserDataUnregisteredSyntax(H26xBinaryReader::ptr br, uint32_t payloadSize, H264SeiUserDataUnregisteredSyntax::ptr udn)
 {
     // See also : ISO 14496/10(2020) - D.1.7 User data unregistered SEI message syntax
     try
@@ -1574,7 +1574,7 @@ bool H264Deserialize::DeserializeSeiUserDataUnregisteredSyntax(H264BinaryReader:
     }
 }
 
-bool H264Deserialize::DeserializeSeiPictureTimingSyntax(H264BinaryReader::ptr br, H264VuiSyntax::ptr vui, H264SeiPictureTimingSyntax::ptr pt)
+bool H264Deserialize::DeserializeSeiPictureTimingSyntax(H26xBinaryReader::ptr br, H264VuiSyntax::ptr vui, H264SeiPictureTimingSyntax::ptr pt)
 {
     // See also : ISO 14496/10(2020) - D.1.2 Buffering period SEI message syntax
     try
@@ -1706,7 +1706,7 @@ bool H264Deserialize::DeserializeSeiPictureTimingSyntax(H264BinaryReader::ptr br
     }
 }
 
-bool H264Deserialize::DeserializeSeiRecoveryPointSyntax(H264BinaryReader::ptr br, H264SeiRecoveryPointSyntax::ptr pt)
+bool H264Deserialize::DeserializeSeiRecoveryPointSyntax(H26xBinaryReader::ptr br, H264SeiRecoveryPointSyntax::ptr pt)
 {
     // See also : ISO 14496/10(2020) - D.1.8 Recovery point SEI message syntax
     try
@@ -1723,7 +1723,7 @@ bool H264Deserialize::DeserializeSeiRecoveryPointSyntax(H264BinaryReader::ptr br
     }
 }
 
-bool H264Deserialize::DeserializeSeiContentLigntLevelInfoSyntax(H264BinaryReader::ptr br, H264SeiContentLigntLevelInfoSyntax::ptr clli)
+bool H264Deserialize::DeserializeSeiContentLigntLevelInfoSyntax(H26xBinaryReader::ptr br, H264SeiContentLigntLevelInfoSyntax::ptr clli)
 {
     // See also : ISO 14496/10(2020) - D.1.31 Content light level information SEI message syntax
     try
@@ -1738,7 +1738,7 @@ bool H264Deserialize::DeserializeSeiContentLigntLevelInfoSyntax(H264BinaryReader
     }
 }
 
-bool H264Deserialize::DeserializeSeiDisplayOrientationSyntax(H264BinaryReader::ptr br, H264SeiDisplayOrientationSyntax::ptr dot)
+bool H264Deserialize::DeserializeSeiDisplayOrientationSyntax(H26xBinaryReader::ptr br, H264SeiDisplayOrientationSyntax::ptr dot)
 {
     // See also : ISO 14496/10(2020) - D.1.27 Display orientation SEI message syntax
     try 
@@ -1760,7 +1760,7 @@ bool H264Deserialize::DeserializeSeiDisplayOrientationSyntax(H264BinaryReader::p
     }
 }
 
-bool H264Deserialize::DeserializeSeiMasteringDisplayColourVolumeSyntax(H264BinaryReader::ptr br, H264MasteringDisplayColourVolumeSyntax::ptr mdcv)
+bool H264Deserialize::DeserializeSeiMasteringDisplayColourVolumeSyntax(H26xBinaryReader::ptr br, H264MasteringDisplayColourVolumeSyntax::ptr mdcv)
 {
     // See also : ISO 14496/10(2020) - D.1.29 Mastering display colour volume SEI message syntax
     try 
@@ -1782,7 +1782,7 @@ bool H264Deserialize::DeserializeSeiMasteringDisplayColourVolumeSyntax(H264Binar
     }
 }
 
-bool H264Deserialize::DeserializeSeiFilmGrainSyntax(H264BinaryReader::ptr br, H264SeiFilmGrainSyntax::ptr fg)
+bool H264Deserialize::DeserializeSeiFilmGrainSyntax(H26xBinaryReader::ptr br, H264SeiFilmGrainSyntax::ptr fg)
 {
     // See also : ISO 14496/10(2020) - D.1.21 Film grain characteristics SEI message syntax
     try 
@@ -1841,7 +1841,7 @@ bool H264Deserialize::DeserializeSeiFilmGrainSyntax(H264BinaryReader::ptr br, H2
     }
 }
 
-bool H264Deserialize::DeserializeSeiFramePackingArrangementSyntax(H264BinaryReader::ptr br, H264SeiFramePackingArrangementSyntax::ptr fpa)
+bool H264Deserialize::DeserializeSeiFramePackingArrangementSyntax(H26xBinaryReader::ptr br, H264SeiFramePackingArrangementSyntax::ptr fpa)
 {
     // See also : ISO 14496/10(2020) - D.1.27 Display orientation SEI message syntax
     try
@@ -1878,7 +1878,7 @@ bool H264Deserialize::DeserializeSeiFramePackingArrangementSyntax(H264BinaryRead
     }
 }
 
-bool H264Deserialize::DeserializeSeiAlternativeTransferCharacteristicsSyntax(H264BinaryReader::ptr br, H264SeiAlternativeTransferCharacteristicsSyntax::ptr atc)
+bool H264Deserialize::DeserializeSeiAlternativeTransferCharacteristicsSyntax(H26xBinaryReader::ptr br, H264SeiAlternativeTransferCharacteristicsSyntax::ptr atc)
 {
     // See also : D.1.32 Alternative transfer characteristics SEI message syntax
     try
@@ -1892,7 +1892,7 @@ bool H264Deserialize::DeserializeSeiAlternativeTransferCharacteristicsSyntax(H26
     }
 }
 
-bool H264Deserialize::DeserializeAmbientViewingEnvironmentSyntax(H264BinaryReader::ptr br, H264AmbientViewingEnvironmentSyntax::ptr awe)
+bool H264Deserialize::DeserializeAmbientViewingEnvironmentSyntax(H26xBinaryReader::ptr br, H264AmbientViewingEnvironmentSyntax::ptr awe)
 {
     // See also : ISO 14496/10(2020) - D.1.34 Ambient viewing environment SEI message syntax
     try

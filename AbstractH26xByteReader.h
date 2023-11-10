@@ -1,9 +1,9 @@
 //
-// AbstractH264ByteReader.h
+// AbstractH26xByteReader.h
 //
 // Library: Coedec
-// Package: H264
-// Module:  H264
+// Package: H26x
+// Module:  H26x
 // 
 
 #pragma once
@@ -15,13 +15,13 @@ namespace Mmp
 namespace Codec
 {
 
-class AbstractH264ByteReader
+class AbstractH26xByteReader
 {
 public:
-    using ptr = std::shared_ptr<AbstractH264ByteReader>;
+    using ptr = std::shared_ptr<AbstractH26xByteReader>;
 public:
-    AbstractH264ByteReader() = default;
-    virtual ~AbstractH264ByteReader() = default;
+    AbstractH26xByteReader() = default;
+    virtual ~AbstractH26xByteReader() = default;
 public:
     /**
      * @brief     read raw data from the bytes stream

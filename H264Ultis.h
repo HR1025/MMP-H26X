@@ -18,7 +18,7 @@ namespace Mmp
 namespace Codec
 {
 
-#ifdef MMP_H264_DEBUG_MODE
+#ifdef MMP_H26X_DEBUG_MODE
 #define MPP_H264_SYNTAXT_STRICT_CHECK(cond, msg, exp)               if (!(cond))\
                                                                     {\
                                                                         std::cerr << "[H264] " << "[" << __FILE__ << ":" << __LINE__ << "]" << msg << std::endl;\
@@ -39,7 +39,7 @@ namespace Codec
                                                                     {\
                                                                         exp;\
                                                                     }
-#endif /* MMP_H264_DEBUG_MODE */
+#endif /* MMP_H26X_DEBUG_MODE */
 
 /**
  * @sa ISO 14496/10(2020) - 8.2.1 Decoding process for picture order count
