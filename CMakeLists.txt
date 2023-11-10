@@ -1,40 +1,51 @@
 cmake_minimum_required(VERSION 3.8)
-project(MMP_H264 DESCRIPTION "Multi Media Plugin - H264 Deserialize and Serialize")
+project(MMP_H26X DESCRIPTION "Multi Media Plugin - H26X Deserialize and Serialize")
 
-option(MMP_H264_DEBUG_MODE "Enable debug mode" ON)
-option(ENBALE_MMP_H264_SAMPLE "Enbale MMP H264 Sampele" ON)
+option(MMP_H26X_DEBUG_MODE "Enable debug mode" ON)
+option(ENBALE_MMP_H26X_SAMPLE "Enbale MMP H26X Sampele" ON)
 
-set(MMP_H264_SRCS)
-set(MMP_H264_INCS)
+set(MMP_H26X_SRCS)
+set(MMP_H26X_INCS)
 
-list(APPEND MMP_H264_INCS
+list(APPEND MMP_H26X_INCS
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-list(APPEND MMP_H264_SRCS
+# Common
+list(APPEND MMP_H26X_SRCS
+    ${CMAKE_CURRENT_SOURCE_DIR}/AbstractH26xByteReader.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/H26xBinaryReader.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/H26xBinaryReader.cpp
+)
+
+# H264
+list(APPEND MMP_H26X_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/H264Common.h
     ${CMAKE_CURRENT_SOURCE_DIR}/H264Common.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/AbstractH264ByteReader.h
     ${CMAKE_CURRENT_SOURCE_DIR}/H264Ultis.h
     ${CMAKE_CURRENT_SOURCE_DIR}/H264Ultis.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/H264BinaryReader.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/H264BinaryReader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/H264Deserialize.h
     ${CMAKE_CURRENT_SOURCE_DIR}/H264Deserialize.cpp
 )
 
-add_library(MMP_H264 STATIC ${MMP_H264_SRCS})
-add_library(MMP::H264 ALIAS MMP_H264)
-target_include_directories(MMP_H264 PUBLIC ${MMP_H264_INCS})
-if (MMP_H264_DEBUG_MODE)
-    target_compile_definitions(MMP_H264 PUBLIC MMP_H264_DEBUG_MODE)
+# H265
+list(APPEND MMP_H26X_SRCS
+    ${CMAKE_CURRENT_SOURCE_DIR}/H265Common.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/H265Common.cpp
+)
+
+add_library(MMP_H26X STATIC ${MMP_H26X_SRCS})
+add_library(MMP::H26x ALIAS MMP_H26X)
+target_include_directories(MMP_H26X PUBLIC ${MMP_H26X_INCS})
+if (MMP_H26X_DEBUG_MODE)
+    target_compile_definitions(MMP_H26X PUBLIC MMP_H26X_DEBUG_MODE)
 endif()
 
-if (ENBALE_MMP_H264_SAMPLE)
-    add_executable(Sample ${MMP_H264_SRCS} ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
-    target_include_directories(Sample PUBLIC ${MMP_H264_INCS})
-    if (MMP_H264_DEBUG_MODE)
-        target_compile_definitions(Sample PUBLIC MMP_H264_DEBUG_MODE)
+if (ENBALE_MMP_H26X_SAMPLE)
+    add_executable(Sample ${MMP_H26X_SRCS} ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
+    target_include_directories(Sample PUBLIC ${MMP_H26X_INCS})
+    if (MMP_H26X_DEBUG_MODE)
+        target_compile_definitions(Sample PUBLIC MMP_H26X_DEBUG_MODE)
     endif()
     if (UNIX)
         target_link_libraries(Sample asan)

@@ -5,8 +5,8 @@
 #include <sstream>
 #include <chrono>
 
-#include "AbstractH264ByteReader.h"
-#include "H264BinaryReader.h"
+#include "AbstractH26xByteReader.h"
+#include "H26xBinaryReader.h"
 #include "H264Deserialize.h"
 
 namespace Mmp
@@ -15,9 +15,9 @@ namespace Codec
 {
 
 /**
- * @brief simple AbstractH264ByteReader implemention based on std::ifstream 
+ * @brief simple AbstractH26xByteReader implemention based on std::ifstream 
  */
-class SimpleFileH264ByteReader : public Mmp::Codec::AbstractH264ByteReader
+class SimpleFileH264ByteReader : public Mmp::Codec::AbstractH26xByteReader
 {
 public:
     explicit SimpleFileH264ByteReader(const std::string& h264Path);
@@ -79,9 +79,9 @@ namespace Codec
 constexpr uint32_t kBufSize = 1024 * 1024;
 
 /**
- * @brief memory cache AbstractH264ByteReader implemention based on std::ifstream 
+ * @brief memory cache AbstractH26xByteReader implemention based on std::ifstream 
  */
-class CacheFileH264ByteReader : public Mmp::Codec::AbstractH264ByteReader
+class CacheFileH264ByteReader : public Mmp::Codec::AbstractH26xByteReader
 {
 public:
     explicit CacheFileH264ByteReader(const std::string& h264Path);
@@ -235,11 +235,11 @@ int main(int argc, char* argv[])
         return -1;
     }
 #if 0 /* slow but simple */
-    AbstractH264ByteReader::ptr byteReader = std::make_shared<SimpleFileH264ByteReader>(std::string(argv[1]));
+    AbstractH26xByteReader::ptr byteReader = std::make_shared<SimpleFileH264ByteReader>(std::string(argv[1]));
 #else /* fast but a bit complicated  */
-    AbstractH264ByteReader::ptr byteReader = std::make_shared<CacheFileH264ByteReader>(std::string(argv[1]));
+    AbstractH26xByteReader::ptr byteReader = std::make_shared<CacheFileH264ByteReader>(std::string(argv[1]));
 #endif
-    H264BinaryReader::ptr binaryReader = std::make_shared<H264BinaryReader>(byteReader);
+    H26xBinaryReader::ptr binaryReader = std::make_shared<H26xBinaryReader>(byteReader);
     H264Deserialize::ptr deserialize = std::make_shared<H264Deserialize>();
     std::vector<H264NalSyntax::ptr> nals;
     bool res = true;
