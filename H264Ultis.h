@@ -41,10 +41,5 @@ namespace Codec
                                                                     }
 #endif /* MMP_H264_DEBUG_MODE */
 
-/**
- * @sa ISO 14496/10(2020) - 8.2.1 Decoding process for picture order count
- */
-void DecodeH264PictureOrderCount(H264SpsSyntax::ptr sps, H264SliceHeaderSyntax::ptr prevSlice, H264SliceHeaderSyntax::ptr curSlice, uint8_t nal_ref_idc, H264PocContext::ptr poc);
-
 } // namespace Codec
 } // namespace Mmp

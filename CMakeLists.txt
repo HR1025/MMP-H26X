@@ -21,6 +21,8 @@ list(APPEND MMP_H264_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/H264BinaryReader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/H264Deserialize.h
     ${CMAKE_CURRENT_SOURCE_DIR}/H264Deserialize.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/H264SliceDecodingProcess.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/H264SliceDecodingProcess.cpp
 )
 
 add_library(MMP_H264 STATIC ${MMP_H264_SRCS})
