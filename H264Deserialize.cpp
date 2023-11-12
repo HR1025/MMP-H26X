@@ -706,12 +706,6 @@ bool H264Deserialize::DeserializeSliceHeaderSyntax(H264BinaryReader::ptr br, H26
                 br->U(1, slice->bottom_field_flag);
             }
         }
-        else
-        {
-            // Reference : FFmpeg 6.x
-            slice->field_pic_flag = 1;
-            slice->bottom_field_flag = 1;
-        }
         if (IdrPicFlag)
         {
             br->UE(slice->idr_pic_id);
