@@ -20,6 +20,9 @@ namespace Mmp
 namespace Codec
 {
 
+/**
+ * @sa ISO 14496/10(2020) - 8.1 NAL unit decoding process
+ */
 class H264Deserialize
 {
 public:

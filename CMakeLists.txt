@@ -26,6 +26,8 @@ list(APPEND MMP_H26X_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/H264Ultis.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/H264Deserialize.h
     ${CMAKE_CURRENT_SOURCE_DIR}/H264Deserialize.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/H264SliceDecodingProcess.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/H264SliceDecodingProcess.cpp
 )
 
 # H265

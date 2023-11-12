@@ -873,7 +873,7 @@ bool H264Deserialize::DeserializeDecodedReferencePictureMarkingSyntax(H26xBinary
                     {
                         br->UE(drpm->max_long_term_frame_idx_plus1);
                     }
-                    drpm->memory_management_control_operations.insert(memory_management_control_operation);
+                    drpm->memory_management_control_operations.push_back(memory_management_control_operation);
                 } while (memory_management_control_operation != 0);
             }
         }

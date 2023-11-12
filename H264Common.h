@@ -21,18 +21,22 @@ namespace Mmp
 namespace Codec
 {
 
+/**
+ * @sa 1 - ISO 14496/10(2020) - A.2 Profiles
+ *     2 - ISO 14496/10(2020) - H.6.1 Profiles
+ */
 enum H264Profile 
 {
-    MMP_H264_PROFILE_FREXT_CAVLC444     = 44,   //!< YUV 4:4:4/14 "CAVLC 4:4:4"
-    MMP_H264_PROFILE_BASELINE           = 66,   //!< YUV 4:2:0/8  "Baseline"
-    MMP_H264_PROFILE_MAIN               = 77,   //!< YUV 4:2:0/8  "Main"
-    MMP_H264_PROFILE_EXTENDED           = 88,   //!< YUV 4:2:0/8  "Extended"
-    MMP_H264_PROFILE_HIGH               = 100,  //!< YUV 4:2:0/8  "High"
-    MMP_H264_PROFILE_HIGH10             = 110,  //!< YUV 4:2:0/10 "High 10"
-    MMP_H264_PROFILE_HIGH422            = 122,  //!< YUV 4:2:2/10 "High 4:2:2"
-    MMP_H264_PROFILE_HIGH444            = 244,  //!< YUV 4:4:4/14 "High 4:4:4"
-    MMP_H264_PROFILE_MVC_HIGH           = 118,  //!< YUV 4:2:0/8  "Multiview High"
-    MMP_H264_PROFILE_STEREO_HIGH        = 128   //!< YUV 4:2:0/8  "Stereo High"
+    MMP_H264_PROFILE_FREXT_CAVLC444     = 44,   // A.2.11 CAVLC 4:4:4 Intra profile
+    MMP_H264_PROFILE_BASELINE           = 66,   // A.2.1 Baseline profile
+    MMP_H264_PROFILE_MAIN               = 77,   // A.2.2 Main profile
+    MMP_H264_PROFILE_EXTENDED           = 88,   // A.2.3 Extended profile
+    MMP_H264_PROFILE_HIGH               = 100,  // A.2.4 High profile
+    MMP_H264_PROFILE_HIGH10             = 110,  // A.2.5 High 10 profile
+    MMP_H264_PROFILE_HIGH422            = 122,  // A.2.6 High 4:2:2 profile and A.2.9 High 4:2:2 Intra profile
+    MMP_H264_PROFILE_HIGH444            = 244,  // A.2.7 High 4:4:4 Predictive profile and A.2.10 High 4:4:4 Intra profile
+    MMP_H264_PROFILE_MVC_HIGH           = 118,  // H.6.1.2 MFC Depth High profile
+    MMP_H264_PROFILE_STEREO_HIGH        = 128   
 };
 
 /**
@@ -83,6 +87,33 @@ enum H264NaluType
     MMP_H264_NALU_TYPE_SLICE_AUX        = 19,
     MMP_H264_NALU_TYPE_SLC_EXT          = 20,
     MMP_H264_NALU_TYPE_VDRD             = 24
+};
+
+/**
+ * @sa  ISO 14496/10(2020) - Table 7-9 – Memory management control operation (memory_management_control_operation) values
+ */
+enum H264MmcoType
+{
+    MMP_H264_MMOO_0 = 0,    // End memory_management_control_operation 
+                            // syntax element loop
+    MMP_H264_MMOO_1 = 1,    // Mark a short-term reference picture as
+                            // "unused for reference"
+    MMP_H264_MMOO_2 = 2,    // Mark a long-term reference picture as
+                            // "unused for reference"
+    MMP_H264_MMOO_3 = 3,    // Mark a short-term reference picture as
+                            // "used for long-term reference" and assign a
+                            // long-term frame index to it
+    MMP_H264_MMOO_4 = 4,    // Specify the maximum long-term frame index
+                            // and mark all long-term reference pictures
+                            // having long-term frame indices greater than
+                            // the maximum value as "unused for reference"
+    MMP_H264_MMOO_5 = 5,    // Mark all reference pictures as
+                            // "unused for reference" and set the
+                            // MaxLongTermFrameIdx variable to
+                            // "no long-term frame indices"
+    MMP_H264_MMOO_6 = 6     // Mark the current picture as
+                            // "used for long-term reference" and assign a
+                            // long-term frame index to it
 };
 
 /**
@@ -694,7 +725,7 @@ public:
     uint8_t   no_output_of_prior_pics_flag;
     uint8_t   long_term_reference_flag;
     uint8_t   adaptive_ref_pic_marking_mode_flag;
-    std::set<uint32_t> memory_management_control_operations;
+    std::vector<uint32_t> memory_management_control_operations;
     uint32_t  difference_of_pic_nums_minus1;
     uint32_t  long_term_pic_num;
     uint32_t  long_term_frame_idx;
@@ -902,25 +933,72 @@ public:
     H264PpsSyntax::ptr pps;
 };
 
-/**
- * @sa ISO 14496/10(2020) - 8.2.1 Decoding process for picture order count
- */
-class H264PocContext
+class H264RplcContext
 {
 public:
-    using ptr = std::shared_ptr<H264PocContext>;
+    using ptr = std::shared_ptr<H264RplcContext>;
 public:
-    H264PocContext() = default;
-    ~H264PocContext() = default;
+    H264RplcContext() = default;
+    ~H264RplcContext() = default;
 public:
-    int32_t  pic_order_cnt_lsb;
-    uint64_t prevFrameNum;
+    uint64_t  FrameNum;
+    uint64_t  LongTermFrameIdx;
 public:
-    int32_t  prevPicOrderCntMsb;  // when pic_order_cnt_type == 0
-    int32_t  prevFrameNumOffset;  // when pic_order_cnt_type == 1
+    uint64_t  PicNum;
+    uint64_t  LongTermPicNum;
+};
+
+/**
+ * @sa ISO 14496/10(2020) - 8.2.5 Decoded reference picture marking process
+ */
+class H264DrpmContext
+{
 public:
+    using ptr = std::shared_ptr<H264DrpmContext>;
+public:
+    H264DrpmContext() = default;
+    ~H264DrpmContext() = default;
+public:
+    bool    unused_for_reference;
+    bool    used_for_short_term_reference;
+    bool    used_for_long_term_reference;
+    int8_t  MaxLongTermFrameIdx;
+    int8_t  LongTermFrameIdx;
+};
+
+class H264PictureContext
+{
+public:
+    using ptr = std::shared_ptr<H264PictureContext>;
+public:
+    using cache = std::map<uint64_t /* picNumX */, H264PictureContext::ptr>;
+public:
+    H264PictureContext() = default;
+    ~H264PictureContext() = default;
+public:
+    static constexpr uint64_t unused_for_reference = 0;
+    static constexpr uint64_t used_for_short_term_reference = 1 << 0U;
+    static constexpr uint64_t used_for_long_term_reference = 1 << 1U;
+public: /* inherit from slice header */
+    uint8_t   field_pic_flag;
+    uint8_t   bottom_field_flag;
+    uint8_t   pic_order_cnt_lsb;
+    std::set<uint32_t> memory_management_control_operations;
+public: /* 8.2.1 Decoding process for picture order count */
     int32_t  TopFieldOrderCnt;
     int32_t  BottomFieldOrderCnt;
+    int32_t  prevPicOrderCntMsb;
+    int64_t  FrameNumOffset;
+public: /* 8.2.4 Decoding process for reference picture lists construction */
+    uint64_t MaxFrameNum;
+    uint64_t FrameNum;
+    uint64_t FrameNumWrap;
+    uint64_t PicNum;
+public: /* 8.2.5 Decoded reference picture marking process */
+    uint64_t referenceFlag;
+    int64_t  MaxLongTermFrameIdx;
+    int64_t  LongTermFrameIdx;
+    uint32_t LongTermPicNum;
 };
 
 } // namespace Codec
