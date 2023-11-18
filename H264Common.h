@@ -682,6 +682,7 @@ public:
     uint32_t  abs_diff_pic_num_minus1;
     uint32_t  long_term_pic_num;
     uint8_t   ref_pic_list_modification_flag_l1;
+    std::vector<uint32_t> modification_of_pic_nums_idcs;
 };
 
 /**
