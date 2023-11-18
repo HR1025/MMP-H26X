@@ -973,12 +973,13 @@ public:
 public:
     using cache = std::set<H264PictureContext::ptr>;
 public:
-    H264PictureContext() = default;
+    H264PictureContext();
     ~H264PictureContext() = default;
 public:
     static constexpr uint64_t unused_for_reference = 0;
     static constexpr uint64_t used_for_short_term_reference = 1 << 0U;
     static constexpr uint64_t used_for_long_term_reference = 1 << 1U;
+    static constexpr uint64_t non_existing = 1 << 2U;
 public: /* inherit from nal unit */
     uint8_t   field_pic_flag;
     uint8_t   bottom_field_flag;

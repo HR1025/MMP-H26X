@@ -8,6 +8,8 @@
 
 #include "H264Common.h"
 
+#include <functional>
+
 namespace Mmp
 {
 namespace Codec
@@ -23,26 +25,40 @@ public:
 public:
     H264SliceDecodingProcess();
     ~H264SliceDecodingProcess();
+public:
+    void SliceDecodingProcess(H264NalSyntax::ptr nal);
 private:
-    void DecodingProcessForPictureOrderCount(H264SliceHeaderSyntax::ptr slice, H264PictureContext::ptr picture);
+    using task = std::function<void()>;
+private:
+    void OnDecodingBegin();
+    void OnDecodingEnd();
+private:
+    void DecodingProcessForPictureOrderCount(H264SpsSyntax::ptr sps, H264SliceHeaderSyntax::ptr slice, uint8_t nal_ref_idc, H264PictureContext::ptr picture);
     void DecodeH264PictureOrderCountType0(H264PictureContext::ptr prevPictrue, H264SpsSyntax::ptr sps, H264SliceHeaderSyntax::ptr slice, H264PictureContext::ptr picture);
     void DecodeH264PictureOrderCountType1(H264PictureContext::ptr prevPictrue, H264SpsSyntax::ptr sps, H264SliceHeaderSyntax::ptr slice, uint8_t nal_ref_idc, H264PictureContext::ptr picture);
     void DecodeH264PictureOrderCountType2(H264PictureContext::ptr prevPictrue, H264SpsSyntax::ptr sps, H264SliceHeaderSyntax::ptr slice, uint8_t nal_ref_idc, H264PictureContext::ptr picture);
 private:
-    void DecodingProcessForReferencePictureListsConstruction();
+    void DecodingProcessForReferencePictureListsConstruction(H264SliceHeaderSyntax::ptr slice, H264SpsSyntax::ptr sps, H264PictureContext::cache pictures, H264PictureContext::ptr picture);
     void DecodingProcessForPictureNumbers(H264SliceHeaderSyntax::ptr slice, H264SpsSyntax::ptr sps, H264PictureContext::cache pictures, H264PictureContext::ptr picture);
     void InitializationProcessForReferencePictureLists(H264SliceHeaderSyntax::ptr slice, H264PictureContext::cache pictures);
 private:
-    void SequenceOfOperationsForDecodedReferencePictureMarkingProcess(H264SliceHeaderSyntax::ptr slice, H264PictureContext::cache pictures, H264PictureContext::ptr picture);
-    void SlidingWindowDecodedReferencePictureMarkingProcess(H264SliceHeaderSyntax::ptr slice, H264PictureContext::cache pictures, H264PictureContext::ptr picture);
+    void DecodeReferencePictureMarkingProcess(H264SliceHeaderSyntax::ptr slice, H264SpsSyntax::ptr sps, H264PictureContext::cache pictures, H264PictureContext::ptr picture, uint8_t nal_ref_idc);
+    void DecodingProcessForGapsInFrameNum(H264SliceHeaderSyntax::ptr slice, H264SpsSyntax::ptr sps, H264PictureContext::ptr picture, uint64_t PrevRefFrameNum);
+    void SequenceOfOperationsForDecodedReferencePictureMarkingProcess(H264SliceHeaderSyntax::ptr slice, H264SpsSyntax::ptr sps, H264PictureContext::cache pictures, H264PictureContext::ptr picture);
+    void SlidingWindowDecodedReferencePictureMarkingProcess(H264SliceHeaderSyntax::ptr slice, H264SpsSyntax::ptr sps, H264PictureContext::cache pictures, H264PictureContext::ptr picture);
     void AdaptiveMemoryControlDecodedReferencePicutreMarkingPorcess(H264SliceHeaderSyntax::ptr slice, H264PictureContext::cache pictures, H264PictureContext::ptr picture);
 private:
-    H264PpsSyntax::ptr _pps;
-    H264SpsSyntax::ptr _sps;
     H264PictureContext::ptr _prevPicture;
 private:
     std::vector<uint64_t /* PicNum or LongTermPicNum */> _RefPicList0;
     std::vector<uint64_t /* PicNum or LongTermPicNum */> _RefPicList1;
+private:
+    H264PictureContext::cache _pictures;
+    std::map<uint32_t, H264SpsSyntax::ptr> _spss;
+    std::map<uint32_t, H264PpsSyntax::ptr> _ppss;
+private:
+    std::vector<task> _beginTasks;
+    std::vector<task> _endTasks;
 };
 
 } // namespace Codec

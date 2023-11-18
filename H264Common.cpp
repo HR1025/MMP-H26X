@@ -373,5 +373,11 @@ H264NalSyntax::H264NalSyntax()
     emulation_prevention_three_byte = 0;
 }
 
+H264PictureContext::H264PictureContext()
+{
+    TopFieldOrderCnt = INT32_MAX;
+    BottomFieldOrderCnt = INT32_MAX;
+}
+
 } // namespace Codec
 } // namespace Mmp
