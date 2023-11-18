@@ -971,18 +971,20 @@ class H264PictureContext
 public:
     using ptr = std::shared_ptr<H264PictureContext>;
 public:
-    using cache = std::map<uint64_t /* picNumX */, H264PictureContext::ptr>;
+    using cache = std::set<H264PictureContext::ptr>;
 public:
-    H264PictureContext() = default;
+    H264PictureContext();
     ~H264PictureContext() = default;
 public:
     static constexpr uint64_t unused_for_reference = 0;
     static constexpr uint64_t used_for_short_term_reference = 1 << 0U;
     static constexpr uint64_t used_for_long_term_reference = 1 << 1U;
-public: /* inherit from slice header */
+    static constexpr uint64_t non_existing = 1 << 2U;
+public: /* inherit from nal unit */
     uint8_t   field_pic_flag;
     uint8_t   bottom_field_flag;
     uint8_t   pic_order_cnt_lsb;
+    uint32_t  long_term_frame_idx;
     std::set<uint32_t> memory_management_control_operations;
 public: /* 8.2.1 Decoding process for picture order count */
     int32_t  TopFieldOrderCnt;
