@@ -1323,6 +1323,7 @@ bool H264Deserialize::DeserializeReferencePictureListModificationSyntax(H264Bina
                     {
                         br->UE(rplm->long_term_pic_num);
                     }
+                    rplm->modification_of_pic_nums_idcs.push_back(modification_of_pic_nums_idc);
                 } while(modification_of_pic_nums_idc != 3);
             }
         }
@@ -1345,6 +1346,7 @@ bool H264Deserialize::DeserializeReferencePictureListModificationSyntax(H264Bina
                     {
                         br->UE(rplm->long_term_pic_num);
                     }
+                    rplm->modification_of_pic_nums_idcs.push_back(modification_of_pic_nums_idc);
                 } while(modification_of_pic_nums_idc != 3);
             }
         }

@@ -486,14 +486,14 @@ void H264SliceDecodingProcess::DecodeH264PictureOrderCountType2(H264PictureConte
  */
 void H264SliceDecodingProcess::DecodingProcessForReferencePictureListsConstruction(H264SliceHeaderSyntax::ptr slice, H264SpsSyntax::ptr sps, H264PictureContext::cache pictures, H264PictureContext::ptr picture)
 {
-    if (!(slice->slice_type == H264SliceType::MMP_H264_P_SLICE || 
-          slice->slice_type == H264SliceType::MMP_H264_SP_SLICE || 
-          slice->slice_type == H264SliceType::MMP_H264_B_SLICE))
-    {
-        return;
-    }
     DecodingProcessForPictureNumbers(slice, sps, pictures, picture);
-
+    InitializationProcessForReferencePictureLists(slice, pictures);
+    if (slice->rplm->ref_pic_list_modification_flag_l0 || 
+        (slice->rplm->ref_pic_list_modification_flag_l1 && slice->slice_type == H264SliceType::MMP_H264_B_SLICE)
+    )
+    {
+        ModificationProcessForReferencePictureLists(slice, sps, pictures, picture);
+    }
 }
 
 /**
@@ -580,8 +580,8 @@ void H264SliceDecodingProcess::InitializationProcessForReferencePictureLists(H26
     // 8.2.4.2.1 Initialization process for the reference picture list for P and SP slices in frames
     if ((slice->slice_type == H264SliceType::MMP_H264_P_SLICE || slice->slice_type == H264SliceType::MMP_H264_SP_SLICE) && slice->field_pic_flag == 0)
     {
-        std::vector<uint64_t> shortTermRefPicList;
-        std::vector<uint64_t> longTermRefList;
+        std::vector<uint64_t> shortTermRefPicList; // the highest PicNum value in descending order
+        std::vector<uint64_t> longTermRefList;     // the lowest LongTermPicNum value in ascending order
         for (auto picture : pictures)
         {
             if (picture->referenceFlag & H264PictureContext::used_for_short_term_reference)
@@ -613,12 +613,177 @@ void H264SliceDecodingProcess::InitializationProcessForReferencePictureLists(H26
     }
     else if ((slice->slice_type == H264SliceType::MMP_H264_B_SLICE) && slice->field_pic_flag == 0)
     {
-
+        // Hint : not support for now
+    }
+    else if ((slice->slice_type == H264SliceType::MMP_H264_B_SLICE) && slice->field_pic_flag == 1)
+    {
+        // Hint : not support for now
+        assert(false);
     }
     // TODO
     {
         _RefPicList0.resize(std::min((size_t)slice-> num_ref_idx_l0_active_minus1 + 1, _RefPicList0.size()));
         _RefPicList1.resize(std::min((size_t)slice-> num_ref_idx_l1_active_minus1 + 1, _RefPicList1.size()));
+    }
+}
+
+/**
+ * @sa  ISO 14496/10(2020) - 8.2.4.3 Modification process for reference picture lists
+ */
+void H264SliceDecodingProcess::ModificationProcessForReferencePictureLists(H264SliceHeaderSyntax::ptr slice, H264SpsSyntax::ptr sps, H264PictureContext::cache pictures, H264PictureContext::ptr picture)
+{
+    uint64_t MaxPicNum = 0;
+    uint64_t CurrPicNum = 0;
+    uint64_t picNumLX = 0;
+    // determine CurrPicNum
+    {
+        if (slice->field_pic_flag == 0)
+        {
+            CurrPicNum = slice->frame_num;
+        }
+        else if (slice->field_pic_flag == 1)
+        {
+            CurrPicNum = 2 * slice->frame_num + 1;
+        }
+    }
+    // determine MaxPicNum
+    {
+        uint64_t MaxFrameNum = 1 << (sps->log2_max_frame_num_minus4 + 4);
+        if (slice->field_pic_flag == 0)
+        {
+            MaxPicNum = MaxFrameNum;
+        }
+        else if (slice->field_pic_flag == 1)
+        {
+            MaxPicNum = 2 * MaxFrameNum;
+        }
+    }
+
+    auto modificationProcessForReferencePictureLists = [&](uint32_t refIdxLX, std::vector<uint64_t>& RefPicListX, uint32_t num_ref_idx_lX_active_minus1)
+    {
+        for (const auto& modification_of_pic_nums_idc : slice->rplm->modification_of_pic_nums_idcs)
+        {
+            // 8.2.4.3.1 Modification process of reference picture lists for short-term reference pictures
+            if (modification_of_pic_nums_idc == 0 || modification_of_pic_nums_idc == 1)
+            {
+                uint64_t picNumLXNoWrap = CurrPicNum;
+                uint64_t picNumLXPred = picNumLXNoWrap;
+                // determine picNumLXNoWrap
+                {
+                    if (modification_of_pic_nums_idc == 0) // (8-34)
+                    {
+                        if (picNumLXNoWrap - (slice->rplm->abs_diff_pic_num_minus1 + 1) < 0)
+                        {
+                            picNumLXNoWrap = picNumLXPred - (slice->rplm->abs_diff_pic_num_minus1 + 1) + MaxPicNum;
+                        }
+                        else
+                        {
+                            picNumLXNoWrap = picNumLXPred - (slice->rplm->abs_diff_pic_num_minus1 + 1);
+                        }
+                    }
+                    else if (modification_of_pic_nums_idc == 1) // (8-35)
+                    {
+                        if (picNumLXPred + (slice->rplm->abs_diff_pic_num_minus1 + 1) >= MaxPicNum)
+                        {
+                            picNumLXNoWrap = picNumLXPred + (slice->rplm->abs_diff_pic_num_minus1 + 1) - MaxPicNum;
+                        }
+                        else
+                        {
+                            picNumLXNoWrap = picNumLXPred + (slice->rplm->abs_diff_pic_num_minus1 + 1);
+                        }
+                    }
+                }
+                picNumLXNoWrap = picNumLXPred;
+                // determine picNumLX
+                {
+                    if (picNumLXNoWrap > CurrPicNum)
+                    {
+                        picNumLX = picNumLXNoWrap - MaxPicNum;
+                    }
+                    else
+                    {
+                        picNumLX = picNumLXNoWrap;
+                    }
+                }
+                // (8-37)
+                {
+                    auto PicNumF = [pictures, MaxPicNum](uint32_t cIdx) -> uint32_t
+                    {
+                        for (auto _picture : pictures)
+                        {
+                            if (_picture->PicNum == cIdx)
+                            {
+                                if (_picture->referenceFlag & H264PictureContext::used_for_short_term_reference)
+                                {
+                                    return cIdx;
+                                }
+                            }
+                        }
+                        return MaxPicNum;
+                    };
+                    for (uint32_t cIdx = num_ref_idx_lX_active_minus1+1; cIdx > refIdxLX; cIdx--)
+                    {
+                        RefPicListX[cIdx] = RefPicListX[cIdx-1];
+                    }
+                    RefPicListX[refIdxLX++] = picNumLX;
+                    uint32_t nIdx = refIdxLX;
+                    for (uint32_t cIdx = refIdxLX; cIdx <= num_ref_idx_lX_active_minus1+1; cIdx++)
+                    {
+                        if (PicNumF(RefPicListX[cIdx]) != picNumLX)
+                        {
+                            RefPicListX[nIdx++] = RefPicListX[cIdx];
+                        }
+                    }
+                }
+            }
+            // 8.2.4.3.2 Modification process of reference picture lists for long-term reference pictures
+            else if (modification_of_pic_nums_idc == 2)
+            {
+                auto LongTermPicNumF = [pictures, MaxPicNum, picture](uint32_t cIdx) -> uint32_t
+                {
+                    for (auto _picture : pictures)
+                    {
+                        if (_picture->LongTermFrameIdx == cIdx)
+                        {
+                            if (_picture->referenceFlag & H264PictureContext::used_for_long_term_reference)
+                            {
+                                return cIdx;
+                            }
+                        }
+                    }
+                    return 2 * (picture->MaxLongTermFrameIdx + 1);
+                };
+
+                for (uint32_t cIdx = num_ref_idx_lX_active_minus1 + 1; cIdx > refIdxLX; cIdx--)
+                {
+                    RefPicListX[cIdx] = RefPicListX[cIdx - 1];
+                }
+                RefPicListX[refIdxLX++] = slice->rplm->long_term_pic_num;
+                uint32_t nIdx = refIdxLX;
+                for (uint32_t cIdx = refIdxLX; cIdx <= num_ref_idx_lX_active_minus1 + 1; cIdx++)
+                {
+                    if (LongTermPicNumF(RefPicListX[cIdx]) != slice->rplm->long_term_pic_num)
+                    {
+                        RefPicListX[nIdx++] = RefPicListX[cIdx];
+                    }
+                }
+            }
+            else if (modification_of_pic_nums_idc == 3)
+            {
+                break;
+            }
+        }
+    };
+
+    if (slice->rplm->ref_pic_list_modification_flag_l0)
+    {
+        uint32_t refIdxL0 = 0;
+        modificationProcessForReferencePictureLists(refIdxL0, _RefPicList0, slice->num_ref_idx_l0_active_minus1);
+    }
+    if (slice->rplm->ref_pic_list_modification_flag_l1 && slice->slice_type == H264SliceType::MMP_H264_B_SLICE)
+    {
+        uint32_t refIdxL1 = 0;
+        modificationProcessForReferencePictureLists(refIdxL1, _RefPicList1, slice->num_ref_idx_l1_active_minus1);
     }
 }
 
@@ -888,7 +1053,13 @@ void H264SliceDecodingProcess::SliceDecodingProcess(H264NalSyntax::ptr nal)
             }
             OnDecodingBegin();
             DecodingProcessForPictureOrderCount(sps, nal->slice, nal->nal_ref_idc, picture);
-            // TODO
+            if (nal->slice->slice_type == H264SliceType::MMP_H264_P_SLICE ||
+                nal->slice->slice_type == H264SliceType::MMP_H264_SP_SLICE ||
+                nal->slice->slice_type == H264SliceType::MMP_H264_B_SLICE
+            )
+            {
+                DecodingProcessForReferencePictureListsConstruction(nal->slice, sps, _pictures, picture);
+            }
             OnDecodingEnd();
             _pictures.insert(picture);
             _prevPicture = picture;
@@ -915,6 +1086,15 @@ void H264SliceDecodingProcess::OnDecodingEnd()
         task();
     }
     _endTasks.clear();
+    H264PictureContext::cache pictures;
+    for (auto picture : _pictures)
+    {
+        if (picture->referenceFlag & H264PictureContext::used_for_short_term_reference || picture->referenceFlag & H264PictureContext::used_for_long_term_reference)
+        {
+            pictures.insert(picture);
+        }
+    }
+    _pictures.swap(pictures);
 }
 
 } // namespace Codec
