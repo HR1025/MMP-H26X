@@ -5,7 +5,7 @@
 #include <memory>
 
 #include "H264Common.h"
-#include "H264Ultis.h"
+#include "H26xUltis.h"
 
 namespace Mmp
 {
@@ -113,7 +113,7 @@ bool H264Deserialize::DeserializeNalSyntax(H26xBinaryReader::ptr br, H264NalSynt
         int64_t NumBytesInRBSP = 0;
         br->BeginNalUnit();
         br->U(1, forbidden_zero_bit);
-        MPP_H264_SYNTAXT_STRICT_CHECK(forbidden_zero_bit == 0, "[nal] forbidden_zero_bit should be 0", return false);
+        MPP_H26X_SYNTAXT_STRICT_CHECK(forbidden_zero_bit == 0, "[nal] forbidden_zero_bit should be 0", return false);
         br->U(2, nal->nal_ref_idc);
         br->U(5, nal->nal_unit_type);
         if (nal->nal_unit_type == H264NaluType::MMP_H264_NALU_TYPE_PREFIX || nal->nal_unit_type == H264NaluType::MMP_H264_NALU_TYPE_SLC_EXT ||
@@ -201,7 +201,7 @@ bool H264Deserialize::DeserializeNalSyntax(H26xBinaryReader::ptr br, H264NalSynt
             }
             default:
                 std::string msg = "unspport nal type parse " + std::to_string(nal->nal_unit_type);
-                MPP_H264_SYNTAXT_NORMAL_CHECK(true, msg, ;);
+                MPP_H26X_SYNTAXT_NORMAL_CHECK(true, msg, ;);
                 break;
         }
         br->EndNalUnit();
@@ -223,7 +223,7 @@ bool H264Deserialize::DeserializeHrdSyntax(H26xBinaryReader::ptr br, H264HrdSynt
             // Hint : cpb_cnt_minus1 plus 1 specifies the number of alternative CPB specifications in the bitstream. The value of 
             // cpb_cnt_minus1 shall be in the range of 0 to 31, inclusive. When low_delay_hrd_flag is equal to 1, cpb_cnt_minus1 shall 
             // be equal to 0. When cpb_cnt_minus1 is not present, it shall be inferred to be equal to 0.
-            MPP_H264_SYNTAXT_STRICT_CHECK(hrd->cpb_cnt_minus1 >= 0 && hrd->cpb_cnt_minus1 < 31, "[hrd] cpb_cnt_minus1 out of range", return false);
+            MPP_H26X_SYNTAXT_STRICT_CHECK(hrd->cpb_cnt_minus1 >= 0 && hrd->cpb_cnt_minus1 < 31, "[hrd] cpb_cnt_minus1 out of range", return false);
         }
         br->U(4, hrd->bit_rate_scale);
         br->U(4, hrd->cpb_size_scale);
@@ -425,7 +425,7 @@ bool H264Deserialize::DeserializeSeiSyntax(H26xBinaryReader::ptr br, H264SeiSynt
             {
                 H264VuiSyntax::ptr vui = _contex->sps && _contex->sps->vui_parameters_present_flag ? _contex->sps->vui_seq_parameters : nullptr;
                 sei->pt = std::make_shared<H264SeiPictureTimingSyntax>();
-                MPP_H264_SYNTAXT_STRICT_CHECK(vui, "[sei] missing vui", return false);
+                MPP_H26X_SYNTAXT_STRICT_CHECK(vui, "[sei] missing vui", return false);
                 if (!DeserializeSeiPictureTimingSyntax(br, vui, sei->pt))
                 {
                     return false;
@@ -558,11 +558,11 @@ bool H264Deserialize::DeserializeSpsSyntax(H26xBinaryReader::ptr br, H264SpsSynt
         )
         {
             br->UE(sps->chroma_format_idc);
-            MPP_H264_SYNTAXT_STRICT_CHECK(!(sps->chroma_format_idc > 3), "[sps] invalid chroma_format_idc", return false);
+            MPP_H26X_SYNTAXT_STRICT_CHECK(!(sps->chroma_format_idc > 3), "[sps] invalid chroma_format_idc", return false);
             if (sps->chroma_format_idc == H264ChromaFormat::MMP_H264_CHROMA_444)
             {
                 br->U(1, sps->separate_colour_plane_flag);
-                MPP_H264_SYNTAXT_NORMAL_CHECK(sps->separate_colour_plane_flag, "[sps] separate_colour_plane_flag are not supported", return false);
+                MPP_H26X_SYNTAXT_NORMAL_CHECK(sps->separate_colour_plane_flag, "[sps] separate_colour_plane_flag are not supported", return false);
             }
             br->UE(sps->bit_depth_luma_minus8);
             br->UE(sps->bit_depth_chroma_minus8);
@@ -610,18 +610,18 @@ bool H264Deserialize::DeserializeSpsSyntax(H26xBinaryReader::ptr br, H264SpsSynt
         br->UE(sps->log2_max_frame_num_minus4);
         {
             // Hint : The value of log2_max_frame_num_minus4 shall be in the range of 0 to 12, inclusive.
-            MPP_H264_SYNTAXT_STRICT_CHECK(/* sps->log2_max_frame_num_minus4>=0 && */ sps->log2_max_frame_num_minus4<=12, "[sps] log2_max_frame_num_minus4 out of range", return false);
+            MPP_H26X_SYNTAXT_STRICT_CHECK(/* sps->log2_max_frame_num_minus4>=0 && */ sps->log2_max_frame_num_minus4<=12, "[sps] log2_max_frame_num_minus4 out of range", return false);
         }
         br->UE(sps->pic_order_cnt_type);
         {
             // Hint : The value of pic_order_cnt_type shall be in the range of 0 to 2, inclusive.
-            MPP_H264_SYNTAXT_STRICT_CHECK(/* sps->pic_order_cnt_type >= 0 && */ sps->pic_order_cnt_type <= 2, "[sps] pic_order_cnt_type out of range", return false);
+            MPP_H26X_SYNTAXT_STRICT_CHECK(/* sps->pic_order_cnt_type >= 0 && */ sps->pic_order_cnt_type <= 2, "[sps] pic_order_cnt_type out of range", return false);
         }
         if (sps->pic_order_cnt_type == 0)
         {
             br->UE(sps->log2_max_pic_order_cnt_lsb_minus4);
             // Hint : The value of log2_max_pic_order_cnt_lsb_minus4 shall be in the range of 0 to 12, inclusive.
-            MPP_H264_SYNTAXT_STRICT_CHECK(/* sps->log2_max_pic_order_cnt_lsb_minus4 >= 0 && */ sps->log2_max_pic_order_cnt_lsb_minus4 <= 12, "[sps] log2_max_pic_order_cnt_lsb_minus4 out of range", return false);
+            MPP_H26X_SYNTAXT_STRICT_CHECK(/* sps->log2_max_pic_order_cnt_lsb_minus4 >= 0 && */ sps->log2_max_pic_order_cnt_lsb_minus4 <= 12, "[sps] log2_max_pic_order_cnt_lsb_minus4 out of range", return false);
         }
         else if (sps->pic_order_cnt_type == 1)
         {
@@ -686,11 +686,11 @@ bool H264Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
         br->UE(slice->first_mb_in_slice);
         br->UE(slice->slice_type);
         slice->slice_type = slice->slice_type % 5; // See aslo : ISO 14496/10(2020) - Table 7-6 – Name association to slice_type 
-        MPP_H264_SYNTAXT_STRICT_CHECK(!(IdrPicFlag && slice->slice_type != H264SliceType::MMP_H264_I_SLICE), "[slice] A non-intra slice in an IDR NAL unit.", return false);
+        MPP_H26X_SYNTAXT_STRICT_CHECK(!(IdrPicFlag && slice->slice_type != H264SliceType::MMP_H264_I_SLICE), "[slice] A non-intra slice in an IDR NAL unit.", return false);
         br->UE(slice->pic_parameter_set_id);
-        MPP_H264_SYNTAXT_STRICT_CHECK(_contex->ppsSet.count(slice->pic_parameter_set_id), "[slice] missing pps", return false);
+        MPP_H26X_SYNTAXT_STRICT_CHECK(_contex->ppsSet.count(slice->pic_parameter_set_id), "[slice] missing pps", return false);
         pps = _contex->ppsSet[slice->pic_parameter_set_id];
-        MPP_H264_SYNTAXT_STRICT_CHECK(_contex->ppsSet.count(pps->seq_parameter_set_id), "[slice] missing sps", return false);
+        MPP_H26X_SYNTAXT_STRICT_CHECK(_contex->ppsSet.count(pps->seq_parameter_set_id), "[slice] missing sps", return false);
         sps = _contex->spsSet[pps->seq_parameter_set_id];
         if (sps->separate_colour_plane_flag == 1)
         {
@@ -715,7 +715,7 @@ bool H264Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
                 // When two consecutive access units in decoding order are both IDR access units, the value of idr_pic_id in the slices of 
                 // the first such IDR access unit shall differ from the idr_pic_id in the second such IDR access unit. The value of idr_pic_id 
                 // shall be in the range of 0 to 65535, inclusive.
-                MPP_H264_SYNTAXT_STRICT_CHECK(/* slice->idr_pic_id >= 0 && */ slice->idr_pic_id <= 65535, "[slice] idr_pic_id out of range", return false);
+                MPP_H26X_SYNTAXT_STRICT_CHECK(/* slice->idr_pic_id >= 0 && */ slice->idr_pic_id <= 65535, "[slice] idr_pic_id out of range", return false);
             }
         }
         if (sps->pic_order_cnt_type == 0)
@@ -757,7 +757,7 @@ bool H264Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
         }
         if (nal->nal_unit_type == 20 /* MMP_H264_NALU_TYPE_SLC_EXT */ || nal->nal_unit_type == 21)
         {
-            MPP_H264_SYNTAXT_STRICT_CHECK(false, "[slice] not support ref_pic_list_mvc_modification() feature", return false);
+            MPP_H26X_SYNTAXT_STRICT_CHECK(false, "[slice] not support ref_pic_list_mvc_modification() feature", return false);
         }
         else
         {
@@ -791,7 +791,7 @@ bool H264Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
             {
                 // Hint :  The value of cabac_init_idc shall be in the range of 0 to 2, inclusive.
                 // WORKAROUND : cabac_init_idc may be other value, for example 7 ???
-                MPP_H264_SYNTAXT_NORMAL_CHECK(/* slice->cabac_init_idc >= 0 && */ slice->cabac_init_idc <= 2, "[slice] cabac_init_idc out of range", ;);
+                MPP_H26X_SYNTAXT_NORMAL_CHECK(/* slice->cabac_init_idc >= 0 && */ slice->cabac_init_idc <= 2, "[slice] cabac_init_idc out of range", ;);
             }
         }
         br->SE(slice->slice_qp_delta);
@@ -1103,9 +1103,9 @@ bool H264Deserialize::DeserializePpsSyntax(H26xBinaryReader::ptr br, H264PpsSynt
     {
         br->more_rbsp_data();
         br->UE(pps->pic_parameter_set_id);
-        MPP_H264_SYNTAXT_STRICT_CHECK(pps->pic_parameter_set_id >= 0 && pps->pic_parameter_set_id <= 255, "[sps] pic_parameter_set_id out of range", return false);
+        MPP_H26X_SYNTAXT_STRICT_CHECK(pps->pic_parameter_set_id >= 0 && pps->pic_parameter_set_id <= 255, "[sps] pic_parameter_set_id out of range", return false);
         br->UE(pps->seq_parameter_set_id);
-        MPP_H264_SYNTAXT_STRICT_CHECK(pps->seq_parameter_set_id >= 0 && pps->seq_parameter_set_id <= 32, "[sps] seq_parameter_set_id out of range", return false);
+        MPP_H26X_SYNTAXT_STRICT_CHECK(pps->seq_parameter_set_id >= 0 && pps->seq_parameter_set_id <= 32, "[sps] seq_parameter_set_id out of range", return false);
         if (_contex->spsSet.count(pps->seq_parameter_set_id) == 0)
         {
             assert(false);
@@ -1119,7 +1119,7 @@ bool H264Deserialize::DeserializePpsSyntax(H26xBinaryReader::ptr br, H264PpsSynt
         {
             br->UE(pps->slice_group_map_type);
             // Reference : FFmpeg 6.x
-            MPP_H264_SYNTAXT_STRICT_CHECK(pps->slice_group_map_type > 0, "[sps] not support slice_group_map_type, missing feature", return false);
+            MPP_H26X_SYNTAXT_STRICT_CHECK(pps->slice_group_map_type > 0, "[sps] not support slice_group_map_type, missing feature", return false);
         }
         br->UE(pps->num_ref_idx_l0_default_active_minus1);
         br->UE(pps->num_ref_idx_l1_default_active_minus1);
@@ -1134,8 +1134,8 @@ bool H264Deserialize::DeserializePpsSyntax(H26xBinaryReader::ptr br, H264PpsSynt
             // num_ref_idx_active_override_flag equal to 0. The value of num_ref_idx_l1_default_active_minus1 shall be in the range    
             // of 0 to 31, inclusive.
             // 
-            MPP_H264_SYNTAXT_STRICT_CHECK(pps->num_ref_idx_l0_default_active_minus1 >= 0 && pps->num_ref_idx_l0_default_active_minus1 <= 31, "[sps] num_ref_idx_l0_default_active_minus1 out of range", return false);
-            MPP_H264_SYNTAXT_STRICT_CHECK(pps->num_ref_idx_l1_default_active_minus1 >= 0 && pps->num_ref_idx_l1_default_active_minus1 <= 31, "[sps] num_ref_idx_active_override_flag out of range", return false);
+            MPP_H26X_SYNTAXT_STRICT_CHECK(pps->num_ref_idx_l0_default_active_minus1 >= 0 && pps->num_ref_idx_l0_default_active_minus1 <= 31, "[sps] num_ref_idx_l0_default_active_minus1 out of range", return false);
+            MPP_H26X_SYNTAXT_STRICT_CHECK(pps->num_ref_idx_l1_default_active_minus1 >= 0 && pps->num_ref_idx_l1_default_active_minus1 <= 31, "[sps] num_ref_idx_active_override_flag out of range", return false);
         }
         br->U(1, pps->weighted_pred_flag);
         br->U(2, pps->weighted_bipred_idc);
@@ -1145,7 +1145,7 @@ bool H264Deserialize::DeserializePpsSyntax(H26xBinaryReader::ptr br, H264PpsSynt
         {
             // Hint : chroma_qp_index_offset specifies the offset that shall be added to QPY and QSY for addressing the table of QPC values 
             // for the Cb chroma component. The value of chroma_qp_index_offset shall be in the range of −12 to +12, inclusive.
-            MPP_H264_SYNTAXT_STRICT_CHECK(pps->chroma_qp_index_offset >= -12 && pps->chroma_qp_index_offset <= 12, "[sps] chroma_qp_index_offset out of range", return false);
+            MPP_H26X_SYNTAXT_STRICT_CHECK(pps->chroma_qp_index_offset >= -12 && pps->chroma_qp_index_offset <= 12, "[sps] chroma_qp_index_offset out of range", return false);
         }
         br->U(1, pps->deblocking_filter_control_present_flag);
         br->U(1, pps->constrained_intra_pred_flag);
@@ -1188,7 +1188,7 @@ bool H264Deserialize::DeserializePpsSyntax(H26xBinaryReader::ptr br, H264PpsSynt
                     // Hint : second_chroma_qp_index_offset specifies the offset that shall be added to QPY and QSY for addressing the table of 
                     // QPC values for the Cr chroma component. The value of second_chroma_qp_index_offset shall be in the range of −12 to 
                     // +12, inclusive.
-                    MPP_H264_SYNTAXT_STRICT_CHECK(pps->second_chroma_qp_index_offset >= -12 && pps->second_chroma_qp_index_offset <= 12, "[sps] second_chroma_qp_index_offset out of range", return false);
+                    MPP_H26X_SYNTAXT_STRICT_CHECK(pps->second_chroma_qp_index_offset >= -12 && pps->second_chroma_qp_index_offset <= 12, "[sps] second_chroma_qp_index_offset out of range", return false);
                 }
             }
             else
@@ -1368,7 +1368,7 @@ bool H264Deserialize::DeserializePredictionWeightTableSyntax(H26xBinaryReader::p
         {
             // Hint : luma_log2_weight_denom is the base 2 logarithm of the denominator for all luma weighting factors. The value of 
             // luma_log2_weight_denom shall be in the range of 0 to 7, inclusive.
-            MPP_H264_SYNTAXT_STRICT_CHECK(pwt->luma_log2_weight_denom >= 0 && pwt->luma_log2_weight_denom <= 7, "[pwt] luma_log2_weight_denom out of range", return false);
+            MPP_H26X_SYNTAXT_STRICT_CHECK(pwt->luma_log2_weight_denom >= 0 && pwt->luma_log2_weight_denom <= 7, "[pwt] luma_log2_weight_denom out of range", return false);
         }
         if (ChromaArrayType != 0)
         {
@@ -1376,7 +1376,7 @@ bool H264Deserialize::DeserializePredictionWeightTableSyntax(H26xBinaryReader::p
             {
                 // Hint : chroma_log2_weight_denom is the base 2 logarithm of the denominator for all chroma weighting factors. The value of 
                 // chroma_log2_weight_denom shall be in the range of 0 to 7, inclusive.
-                MPP_H264_SYNTAXT_STRICT_CHECK(pwt->chroma_log2_weight_denom >= 0 && pwt->chroma_log2_weight_denom <= 7, "[pwt] chroma_log2_weight_denom out of range", return false);
+                MPP_H26X_SYNTAXT_STRICT_CHECK(pwt->chroma_log2_weight_denom >= 0 && pwt->chroma_log2_weight_denom <= 7, "[pwt] chroma_log2_weight_denom out of range", return false);
             }
         }
         pwt->luma_weight_l0_flag.resize(slice->num_ref_idx_l0_active_minus1 + 1);

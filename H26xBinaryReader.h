@@ -52,6 +52,8 @@ public:
     void rbsp_trailing_bits();
     bool more_data_in_byte_stream();
 public:
+    void byte_alignment();
+public:
     bool End();
 public:
     void ReadOneByteAuto(bool force = false);

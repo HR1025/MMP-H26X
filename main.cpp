@@ -2,12 +2,15 @@
 #include <iostream>
 #include <fstream>
 #include <cassert>
+#include <memory>
 #include <sstream>
 #include <chrono>
+#include <string>
 
 #include "AbstractH26xByteReader.h"
 #include "H26xBinaryReader.h"
 #include "H264Deserialize.h"
+#include "H265Deserialize.h"
 
 namespace Mmp
 {
@@ -223,13 +226,13 @@ static std::string NalUintTypeToStr(uint32_t nal_unit_type)
 void Usage()
 {
     std::stringstream ss;
-    ss << "[usage] ./Sample xxx.h264" << std::endl;
+    ss << "[usage] ./Sample [xxx.h264 | xxx.h265]" << std::endl;
     std::cout << ss.str() << std::endl;
 }
 
 int main(int argc, char* argv[])
 {
-    if (argc != 2 || std::string(argv[1]).find(".h264") == std::string::npos)
+    if (argc != 2 || (std::string(argv[1]).find(".h264") == std::string::npos && std::string(argv[1]).find(".h265") == std::string::npos))
     {
         Usage();
         return -1;
@@ -239,26 +242,35 @@ int main(int argc, char* argv[])
 #else /* fast but a bit complicated  */
     AbstractH26xByteReader::ptr byteReader = std::make_shared<CacheFileH264ByteReader>(std::string(argv[1]));
 #endif
-    H26xBinaryReader::ptr binaryReader = std::make_shared<H26xBinaryReader>(byteReader);
-    H264Deserialize::ptr deserialize = std::make_shared<H264Deserialize>();
-    std::vector<H264NalSyntax::ptr> nals;
-    bool res = true;
-    int num = 0;
-    auto begin = std::chrono::system_clock::now();
-    do
+    if (std::string(argv[1]).find(".h264") == std::string::npos)
     {
-        num++;
-        H264NalSyntax::ptr nal = std::make_shared<H264NalSyntax>();
-        auto start = std::chrono::system_clock::now();
-        res = deserialize->DeserializeByteStreamNalUnit(binaryReader, nal);
-        std::cout << "(" << num << ")" << "  "  << "[" << NalUintTypeToStr(nal->nal_unit_type) << "]" 
-                  << " cost time :" << (std::chrono::system_clock::now() - start).count() / (1000 * 1000) << " ms"
-                  << std::endl;
-        if (res)
+        H26xBinaryReader::ptr binaryReader = std::make_shared<H26xBinaryReader>(byteReader);
+        H264Deserialize::ptr deserialize = std::make_shared<H264Deserialize>();
+        std::vector<H264NalSyntax::ptr> nals;
+        bool res = true;
+        int num = 0;
+        auto begin = std::chrono::system_clock::now();
+        do
         {
-            nals.push_back(nal);
-        }
-    } while (res && !binaryReader->Eof());
-    std::cout << "total cost time : " << (std::chrono::system_clock::now() - begin).count() / (1000 * 1000) << "ms";
+            num++;
+            H264NalSyntax::ptr nal = std::make_shared<H264NalSyntax>();
+            auto start = std::chrono::system_clock::now();
+            res = deserialize->DeserializeByteStreamNalUnit(binaryReader, nal);
+            std::cout << "(" << num << ")" << "  "  << "[" << NalUintTypeToStr(nal->nal_unit_type) << "]" 
+                    << " cost time :" << (std::chrono::system_clock::now() - start).count() / (1000 * 1000) << " ms"
+                    << std::endl;
+            if (res)
+            {
+                nals.push_back(nal);
+            }
+        } while (res && !binaryReader->Eof());
+        std::cout << "total cost time : " << (std::chrono::system_clock::now() - begin).count() / (1000 * 1000) << "ms";
+    }
+    else if (std::string::npos && std::string(argv[1]).find(".h265") == std::string::npos)
+    {
+        H26xBinaryReader::ptr binaryReader = std::make_shared<H26xBinaryReader>(byteReader);
+        H265Deserialize::ptr deserialize = std::make_shared<H265Deserialize>();
+    }
+
     return 0;
 }
