@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <string>
 
-#include "H264Ultis.h"
+#include "H26xUltis.h"
 
 namespace Mmp
 {
@@ -374,6 +374,12 @@ bool H26xBinaryReader::more_data_in_byte_stream()
     // - If more data follow in the byte stream, the return value of more_data_in_byte_stream( ) is equal to TRUE.
     // - Otherwise, the return value of more_data_in_byte_stream( ) is equal to FALSE.
     return !_reader->Eof();
+}
+
+void H26xBinaryReader::byte_alignment()
+{
+    assert(false);
+    // TODO
 }
 
 bool H26xBinaryReader::End()
