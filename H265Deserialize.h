@@ -44,6 +44,11 @@ private: /* sps */
 private: /* slice */
     bool DeserializeRefPicListsModificationSyntax(H26xBinaryReader::ptr br, H265SliceHeaderSyntax::ptr slice, H265RefPicListsModificationSyntax::ptr rplm);
     bool DeserializePredWeightTableSyntax(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265SliceHeaderSyntax::ptr slice, H265PredWeightTableSyntax::ptr pwt);
+private: /* sei */
+    bool DeserializeSeiDecodedPictureHash(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265SeiDecodedPictureHashSyntax::ptr dph);
+    bool DeserializeSeiPicTimingSyntax(H26xBinaryReader::ptr br, H265VuiSyntax::ptr vui, H265HrdSyntax::ptr hrd, H264SeiPicTimingSyntax::ptr pt);
+    bool DeserializeSeiActiveParameterSetsSyntax(H26xBinaryReader::ptr br, H265VPSSyntax::ptr vps, H265SeiActiveParameterSetsSyntax::ptr aps);
+    bool DeserializeSeiActiveParameterSetsSyntax(H26xBinaryReader::ptr br, H265SeiTimeCodeSyntax::ptr tc);
 private:
     bool DeserializeHrdSyntax(H26xBinaryReader::ptr br, uint8_t commonInfPresentFlag, uint32_t maxNumSubLayersMinus, H265HrdSyntax::ptr hrd);
     bool DeserializeSubLayerHrdSyntax(H26xBinaryReader::ptr br, uint32_t subLayerId, H265HrdSyntax::ptr hrd, H265SubLayerHrdSyntax::ptr slHrd);

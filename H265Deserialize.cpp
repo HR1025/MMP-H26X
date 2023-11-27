@@ -1122,6 +1122,200 @@ bool H265Deserialize::DeserializePredWeightTableSyntax(H26xBinaryReader::ptr br,
     }
 }
 
+bool H265Deserialize::DeserializeSeiDecodedPictureHash(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265SeiDecodedPictureHashSyntax::ptr dph)
+{
+    // See also : ITU-T H.265 (2021) - D.2.20 Decoded picture hash SEI message syntax
+    try
+    {
+        br->U(8, dph->hash_type);
+        if (dph->hash_type == 0)
+        {
+            dph->picture_md5.resize(sps->chroma_format_idc == 0 ? 1:3);
+        }
+        else if (dph->hash_type == 1)
+        {
+            dph->picture_crc.resize(sps->chroma_format_idc == 0 ? 1:3);
+        }
+        else if (dph->hash_type == 2)
+        {
+            dph->picture_checksum.resize(sps->chroma_format_idc == 0 ? 1:3);
+        }
+        for (uint32_t cIdx=0; cIdx<(sps->chroma_format_idc == 0 ? 1:3); cIdx++)
+        {
+            if (dph->hash_type == 0)
+            {
+                dph->picture_md5[cIdx].resize(16);
+                for (uint8_t i=0; i<16; i++)
+                {
+                    br->B8(dph->picture_md5[cIdx][i]);
+                }
+            }
+            else if (dph->hash_type == 1)
+            {
+                br->U(16, dph->picture_crc[cIdx]);
+            }
+            else if (dph->hash_type == 2)
+            {
+                br->U(32, dph->picture_checksum[cIdx]);
+            }
+        }
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
+bool H265Deserialize::DeserializeSeiPicTimingSyntax(H26xBinaryReader::ptr br, H265VuiSyntax::ptr vui, H265HrdSyntax::ptr hrd, H264SeiPicTimingSyntax::ptr pt)
+{
+    // See also : ITU-T H.265 (2021) - D.2.3 Picture timing SEI message syntax
+    try
+    {
+        if (vui->frame_field_info_present_flag)
+        {
+            br->U(4, pt->pic_struct);
+            br->U(2, pt->source_scan_type);
+            br->U(1, pt->duplicate_flag);
+        }
+        uint8_t CpbDpbDelaysPresentFlag = (hrd->nal_hrd_parameters_present_flag || hrd->vcl_hrd_parameters_present_flag) ? 1 : 0;
+        if (CpbDpbDelaysPresentFlag)
+        {
+            br->U(hrd->au_cpb_removal_delay_length_minus1+1, pt->au_cpb_removal_delay_minus1);
+            br->U(hrd->dpb_output_delay_length_minus1+1, pt->pic_dpb_output_delay);
+            if (hrd->sub_pic_hrd_params_present_flag)
+            {
+                br->U(hrd->dpb_output_delay_du_length_minus1+1, pt->pic_dpb_output_du_delay);
+            }
+            if (hrd->sub_pic_hrd_params_present_flag &&
+                hrd->sub_pic_cpb_params_in_pic_timing_sei_flag
+            )
+            {
+                br->UE(pt->num_decoding_units_minus1);
+                br->U(1, pt->du_common_cpb_removal_delay_flag);
+                if (pt->du_common_cpb_removal_delay_flag)
+                {
+                    br->U(hrd->du_cpb_removal_delay_increment_length_minus1+1, pt->du_common_cpb_removal_delay_increment_minus1);
+                }
+                pt->num_nalus_in_du_minus1.resize(pt->num_decoding_units_minus1 + 1);
+                pt->du_cpb_removal_delay_increment_minus1.resize(pt->num_decoding_units_minus1 + 1);
+                for (uint32_t i=0; i<=pt->num_decoding_units_minus1; i++)
+                {
+                    br->UE(pt->num_nalus_in_du_minus1[i]);
+                    if (!pt->du_common_cpb_removal_delay_flag && i<pt->num_decoding_units_minus1)
+                    {
+                        br->U(hrd->du_cpb_removal_delay_increment_length_minus1+1, pt->du_cpb_removal_delay_increment_minus1[i]);
+                    }
+                }
+            }
+        }
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
+bool H265Deserialize::DeserializeSeiActiveParameterSetsSyntax(H26xBinaryReader::ptr br, H265VPSSyntax::ptr vps, H265SeiActiveParameterSetsSyntax::ptr aps)
+{
+    // See also : ITU-T H.265 (2021) - D.2.21 Active parameter sets SEI message syntax
+    try
+    {
+        br->U(4, aps->active_video_parameter_set_id);
+        br->U(1, aps->self_contained_cvs_flag);
+        br->U(1, aps->no_parameter_set_update_flag);
+        br->UE(aps->num_sps_ids_minus1);
+        aps->active_seq_parameter_set_id.resize(aps->num_sps_ids_minus1 + 1);
+        for (uint32_t i=0; i<=aps->num_sps_ids_minus1; i++)
+        {
+            br->UE(aps->active_seq_parameter_set_id[i]);
+        }
+        uint32_t MaxLayersMinus1 = std::min((uint8_t)62, vps->vps_max_layers_minus1);
+        aps->layer_sps_idx.resize(MaxLayersMinus1 + 1);
+        for (uint8_t i=vps->vps_base_layer_internal_flag; i<=MaxLayersMinus1; i++)
+        {
+            br->UE(aps->layer_sps_idx[i]);
+        }
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
+bool H265Deserialize::DeserializeSeiActiveParameterSetsSyntax(H26xBinaryReader::ptr br, H265SeiTimeCodeSyntax::ptr tc)
+{
+    // See also : ITU-T H.265 (2021) - D.2.27 Time code SEI message syntax
+    try
+    {
+        br->U(2, tc->num_clock_ts);
+        tc->clock_timestamp_flag.resize(tc->num_clock_ts + 1);
+        tc->units_field_based_flag.resize(tc->num_clock_ts + 1);
+        tc->counting_type.resize(tc->num_clock_ts + 1);
+        tc->full_timestamp_flag.resize(tc->num_clock_ts + 1);
+        tc->discontinuity_flag.resize(tc->num_clock_ts + 1);
+        tc->cnt_dropped_flag.resize(tc->num_clock_ts + 1);
+        tc->n_frames.resize(tc->num_clock_ts + 1);
+        tc->seconds_value.resize(tc->num_clock_ts + 1);
+        tc->minutes_value.resize(tc->num_clock_ts + 1);
+        tc->hours_value.resize(tc->num_clock_ts + 1);
+        tc->seconds_flag.resize(tc->num_clock_ts + 1);
+        tc->minutes_flag.resize(tc->num_clock_ts + 1);
+        tc->hours_flag.resize(tc->num_clock_ts + 1);
+        tc->time_offset_length.resize(tc->num_clock_ts + 1);
+        tc->time_offset_value.resize(tc->num_clock_ts + 1);
+        for (uint8_t i=0; i<=tc->num_clock_ts; i++)
+        {
+            br->U(1, tc->clock_timestamp_flag[i]);
+            if (tc->clock_timestamp_flag[i])
+            {
+                br->U(1, tc->units_field_based_flag[i]);
+                br->U(5, tc->counting_type[i]);
+                br->U(1, tc->full_timestamp_flag[i]);
+                br->U(1, tc->discontinuity_flag[i]);
+                br->U(1, tc->cnt_dropped_flag[i]);
+                br->U(9, tc->n_frames[i]);
+                if (tc->full_timestamp_flag[i])
+                {
+                    br->U(6, tc->seconds_value[i]);
+                    br->U(6, tc->minutes_value[i]);
+                    br->U(5, tc->hours_value[i]);
+                }
+                else 
+                {
+                    br->U(1, tc->seconds_flag[i]);
+                    if (tc->seconds_flag[i])
+                    {
+                        br->U(6, tc->seconds_value[i]);
+                        br->U(1, tc->minutes_flag[i]);
+                        if (tc->minutes_flag[i])
+                        {
+                            br->U(6, tc->minutes_value[i]);
+                            br->U(1, tc->hours_flag[i]);
+                            if (tc->hours_flag[i])
+                            {
+                                br->U(5, tc->hours_value[i]);
+                            }
+                        }
+                    }
+                }
+            }
+            br->U(5, tc->time_offset_length[i]);
+            if (tc->time_offset_length[i] > 0)
+            {
+                br->I(tc->time_offset_length[i], tc->time_offset_value[i]);
+            }
+        }
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
 bool H265Deserialize::DeserializeHrdSyntax(H26xBinaryReader::ptr br, uint8_t commonInfPresentFlag, uint32_t maxNumSubLayersMinus, H265HrdSyntax::ptr hrd)
 {
     // See also : ITU-T H.265 (2021) - E.2.2 HRD parameters syntax

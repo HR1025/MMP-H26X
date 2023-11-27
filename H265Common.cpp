@@ -425,6 +425,43 @@ H265SliceHeaderSyntax::H265SliceHeaderSyntax()
     slice_segment_header_extension_length = 0;
 }
 
+H264SeiPicTimingSyntax::H264SeiPicTimingSyntax()
+{
+    pic_struct = 0;
+    source_scan_type = 0;
+    duplicate_flag = 0;
+    au_cpb_removal_delay_minus1 = 0;
+    pic_dpb_output_delay = 0;
+    pic_dpb_output_du_delay = 0;
+    num_decoding_units_minus1 = 0;
+    du_common_cpb_removal_delay_flag = 0;
+    du_common_cpb_removal_delay_increment_minus1 = 0;
+}
+
+H265SeiDecodedPictureHashSyntax::H265SeiDecodedPictureHashSyntax()
+{
+    hash_type = 0;
+}
+
+H265SeiActiveParameterSetsSyntax::H265SeiActiveParameterSetsSyntax()
+{
+    active_video_parameter_set_id = 0;
+    self_contained_cvs_flag = 0;
+    no_parameter_set_update_flag = 0;
+    num_sps_ids_minus1 = 0;
+}
+
+H265SeiTimeCodeSyntax::H265SeiTimeCodeSyntax()
+{
+    num_clock_ts = 0;
+}
+
+H265SeiMessageSyntax::H265SeiMessageSyntax()
+{
+    payloadType = 0;
+    payloadSize = 0;
+}
+
 H265NalUnitHeaderSyntax::H265NalUnitHeaderSyntax()
 {
     forbidden_zero_bit = 0;
