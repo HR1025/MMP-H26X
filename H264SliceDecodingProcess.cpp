@@ -1016,6 +1016,16 @@ void H264SliceDecodingProcess::AdaptiveMemoryControlDecodedReferencePicutreMarki
 
 /*************************************** 8.2.5 Decoded reference picture marking process(End) ******************************************/
 
+H264SliceDecodingProcess::H264SliceDecodingProcess()
+{
+    _prevPicture = nullptr;
+}
+
+H264SliceDecodingProcess::~H264SliceDecodingProcess()
+{
+
+}
+
 void H264SliceDecodingProcess::SliceDecodingProcess(H264NalSyntax::ptr nal)
 {
     switch (nal->nal_unit_type)
@@ -1030,6 +1040,7 @@ void H264SliceDecodingProcess::SliceDecodingProcess(H264NalSyntax::ptr nal)
             _ppss[nal->pps->pic_parameter_set_id] = nal->pps;
             break;
         }
+        case H264NaluType::MMP_H264_NALU_TYPE_IDR:
         case H264NaluType::MMP_H264_NALU_TYPE_SLICE:
         {
             H264PictureContext::ptr picture = std::make_shared<H264PictureContext>();
@@ -1050,6 +1061,7 @@ void H264SliceDecodingProcess::SliceDecodingProcess(H264NalSyntax::ptr nal)
                 picture->bottom_field_flag = nal->slice->bottom_field_flag;
                 picture->pic_order_cnt_lsb = nal->slice->pic_order_cnt_lsb;
                 picture->long_term_frame_idx = nal->slice->drpm->long_term_frame_idx;
+                picture->FrameNum = nal->slice->frame_num;
             }
             OnDecodingBegin();
             DecodingProcessForPictureOrderCount(sps, nal->slice, nal->nal_ref_idc, picture);
@@ -1068,6 +1080,11 @@ void H264SliceDecodingProcess::SliceDecodingProcess(H264NalSyntax::ptr nal)
         default:
             break;
     }
+}
+
+H264PictureContext::ptr H264SliceDecodingProcess::GetCurrentPictureContext()
+{
+    return _prevPicture;
 }
 
 void H264SliceDecodingProcess::OnDecodingBegin()

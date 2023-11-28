@@ -267,6 +267,11 @@ void H26xBinaryReader::EndNalUnit()
     _inNalUnit = false;
 }
 
+size_t H26xBinaryReader::CurBits()
+{
+    return _reader->Tell() * 8 + (_curBitPos % 8);
+}
+
 bool H26xBinaryReader::more_rbsp_data()
 {
     // Hint :

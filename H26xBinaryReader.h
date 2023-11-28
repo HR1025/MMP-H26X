@@ -48,6 +48,8 @@ public:
     void BeginNalUnit();
     void EndNalUnit();
 public:
+    size_t CurBits();
+public:
     bool more_rbsp_data();
     void rbsp_trailing_bits();
     bool more_data_in_byte_stream();
