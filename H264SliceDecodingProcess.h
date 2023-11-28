@@ -27,6 +27,8 @@ public:
     ~H264SliceDecodingProcess();
 public:
     void SliceDecodingProcess(H264NalSyntax::ptr nal);
+public:
+    H264PictureContext::ptr GetCurrentPictureContext();
 private:
     using task = std::function<void()>;
 private:
