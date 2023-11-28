@@ -679,6 +679,7 @@ bool H264Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
     // See aslo : ISO 14496/10(2020) - 7.3.3 Slice header syntax
     try
     {
+        size_t begin = br->CurBits();
         H264PpsSyntax::ptr pps = nullptr;
         H264SpsSyntax::ptr sps = nullptr;
         bool IdrPicFlag = false;
@@ -767,7 +768,7 @@ bool H264Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
                 return false;
             }
         }
-        if (pps->weighted_pred_flag && (slice->slice_type == H264SliceType::MMP_H264_P_SLICE || slice->slice_type == H264SliceType::MMP_H264_SP_SLICE) ||
+        if ((pps->weighted_pred_flag && (slice->slice_type == H264SliceType::MMP_H264_P_SLICE || slice->slice_type == H264SliceType::MMP_H264_SP_SLICE)) ||
             (pps->weighted_bipred_idc == 1 && slice->slice_type == H264SliceType::MMP_H264_B_SLICE)
         )
         {
@@ -801,7 +802,7 @@ bool H264Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
             {
                 br->U(1, slice->sp_for_switch_flag);
             }
-            br->SE(slice->slice_qs_delta);;
+            br->SE(slice->slice_qs_delta);
         }
         if (pps->deblocking_filter_control_present_flag)
         {
@@ -818,6 +819,7 @@ bool H264Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
         {
             br->U(2, slice->slice_group_change_cycle);
         }
+        slice->slice_data_bit_offset = br->CurBits() - begin;
         return true;
     }
     catch (...)
@@ -1195,6 +1197,33 @@ bool H264Deserialize::DeserializePpsSyntax(H26xBinaryReader::ptr br, H264PpsSynt
             {
                 // Reference : FFmpeg 6.x
                 pps->second_chroma_qp_index_offset = pps->chroma_qp_index_offset;
+            }
+        }
+        else
+        {
+            // (7-8)
+            {
+                pps->ScalingList4x4.resize(6);
+                for (size_t i=0; i<6; i++)
+                {
+                    pps->ScalingList4x4[i].resize(16);
+                    for (size_t j=0; j<16; j++)
+                    {
+                        pps->ScalingList4x4[i][j] = 16;
+                    }
+                }
+            }
+            // (7-9)
+            {
+                pps->ScalingList8x8.resize(2);
+                for (size_t i=0; i<2; i++)
+                {
+                    pps->ScalingList8x8[i].resize(64);
+                    for (size_t j=0; j<64; j++)
+                    {
+                        pps->ScalingList8x8[i][j] = 16;
+                    }
+                }
             }
         }
         br->rbsp_trailing_bits();

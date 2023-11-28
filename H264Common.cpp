@@ -362,6 +362,7 @@ H264SliceHeaderSyntax::H264SliceHeaderSyntax()
     slice_alpha_c0_offset_div2 = 0;
     slice_beta_offset_div2 = 0;
     slice_group_change_cycle = 0;
+    slice_data_bit_offset = 0;
 }
 
 H264NalSyntax::H264NalSyntax()

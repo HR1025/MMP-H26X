@@ -892,6 +892,8 @@ public:
     H264ReferencePictureListModificationSyntax::ptr rplm;
     H264PredictionWeightTableSyntax::ptr pwt;
     H264DecodedReferencePictureMarkingSyntax::ptr drpm;
+public:
+    uint16_t slice_data_bit_offset;
 };
 
 /**
