@@ -470,5 +470,10 @@ H265NalUnitHeaderSyntax::H265NalUnitHeaderSyntax()
     nuh_temporal_id_plus1 = 0;
 }
 
+H265ContextSyntax::H265ContextSyntax()
+{
+    
+}
+
 } // names1ace Codec
 } // namespace Mmp

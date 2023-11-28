@@ -958,16 +958,20 @@ public:
     uint8_t  nuh_temporal_id_plus1;
 };
 
-class H265NalUnitSyntax
+class H265NalSyntax
 {
 public:
-    using ptr = std::shared_ptr<H265NalUnitSyntax>;
+    using ptr = std::shared_ptr<H265NalSyntax>;
 public:
-    H265NalUnitSyntax() = default;
-    ~H265NalUnitSyntax() = default;
+    H265NalSyntax() = default;
+    ~H265NalSyntax() = default;
 public:
     H265NalUnitHeaderSyntax::ptr header;
-    // TODO
+    H265VPSSyntax::ptr           vps;
+    H265SpsSyntax::ptr           sps;
+    H265PpsSyntax::ptr           pps;
+    H265SeiMessageSyntax::ptr    sei;
+    H265SliceHeaderSyntax::ptr   slice;
 };
 
 class H265ContextSyntax

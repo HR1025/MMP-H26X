@@ -25,13 +25,19 @@ class H265Deserialize
 public:
     using ptr = std::shared_ptr<H265Deserialize>;
 public:
-    H265Deserialize() = default;
+    H265Deserialize();
     ~H265Deserialize() = default;
 public:
+    /**
+     * @note for H264 Annex B type, common in network stream
+     */
+    bool DeserializeByteStreamNalUnit(H26xBinaryReader::ptr br, H265NalSyntax::ptr nal);
+    bool DeserializeNalSyntax(H26xBinaryReader::ptr br, H265NalSyntax::ptr nal);
+    bool DeserializeNalHeaderSyntax(H26xBinaryReader::ptr br, H265NalUnitHeaderSyntax::ptr nalHeader); 
     bool DeserializePpsSyntax(H26xBinaryReader::ptr br, H265PpsSyntax::ptr pps);
     bool DeserializeSpsSyntax(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps);
     bool DeserializeVPSSyntax(H26xBinaryReader::ptr br, H265VPSSyntax::ptr vps);
-    bool DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H265NalUnitHeaderSyntax::ptr nal, H265SpsSyntax::ptr sps, H265PpsSyntax::ptr pps, H265SliceHeaderSyntax::ptr slice);
+    bool DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H265NalUnitHeaderSyntax::ptr nal, H265SliceHeaderSyntax::ptr slice);
 private: /* pps */
     bool DeserializePps3dSyntax(H26xBinaryReader::ptr br, H265PpsSyntax::ptr pps, H265Pps3dSyntax::ptr pps3d);
     bool DeserializePpsRangeSyntax(H26xBinaryReader::ptr br, H265PpsSyntax::ptr pps, H265PpsRangeSyntax::ptr ppsRange);

@@ -1,4 +1,5 @@
 #include <memory.h>
+#include <cstdint>
 #include <iostream>
 #include <fstream>
 #include <cassert>
@@ -196,7 +197,7 @@ bool CacheFileH264ByteReader::Eof()
 
 using namespace Mmp::Codec;
 
-static std::string NalUintTypeToStr(uint32_t nal_unit_type)
+static std::string H264NalUintTypeToStr(uint32_t nal_unit_type)
 {
     switch (nal_unit_type)
     {
@@ -223,6 +224,45 @@ static std::string NalUintTypeToStr(uint32_t nal_unit_type)
     }
 }
 
+static std::string H265NalUintTypeToStr(uint32_t nal_unit_type)
+{
+    switch (nal_unit_type) 
+    {
+        case H265NaluType::MMP_H265_NALU_TYPE_TRAIL_N: return "trail n";
+        case H265NaluType::MMP_H265_NALU_TYPE_TRAIL_R: return "trail r";
+        case H265NaluType::MMP_H265_NALU_TYPE_TSA_N: return "tsa n";
+        case H265NaluType::MMP_H265_NALU_TYPE_TSA_R: return "tsa r";
+        case H265NaluType::MMP_H265_NALU_TYPE_STSA_N: return "stsa n";
+        case H265NaluType::MMP_H265_NALU_TYPE_STSA_R: return "stsa r";
+        case H265NaluType::MMP_H265_NALU_TYPE_RADL_R: return "radl r";
+        case H265NaluType::MMP_H265_NALU_TYPE_RASL_R: return "rasl r";
+        case H265NaluType::MMP_H265_NALU_TYPE_RSV_VCL_N10: return "rsv vcl n10";
+        case H265NaluType::MMP_H265_NALU_TYPE_RSV_VCL_N12: return "rsv vcl n12";
+        case H265NaluType::MMP_H265_NALU_TYPE_RSV_VCL_N14T: return "src vcl n14t";
+        case H265NaluType::MMP_H265_NALU_TYPE_RSV_VCL_R11: return "rsv vcl r11";
+        case H265NaluType::MMP_H265_NALU_TYPE_RSV_VCL_R13: return "rsv vcl r13";
+        case H265NaluType::MMP_H265_NALU_TYPE_RSV_VCL_R15: return "rsv vcl r15";
+        case H265NaluType::MMP_H265_NALU_TYPE_BLA_W_LP: return "bla w lp";
+        case H265NaluType::MMP_H265_NALU_TYPE_BLA_W_RADL: return "bla w radl";
+        case H265NaluType::MMP_H265_NALU_TYPE_BLA_N_LP: return "bla n lp";
+        case H265NaluType::MMP_H265_NALU_TYPE_IDR_W_RADL: return "idr w rald";
+        case H265NaluType::MMP_H265_NALU_TYPE_IDR_N_LP: return "idr n lp";
+        case H265NaluType::MMP_H265_NALU_TYPE_RSV_IRAP_VCL22: return "rsv irap vcl22";
+        case H265NaluType::MMP_H265_NALU_TYPE_RSV_IRAP_VCL23: return "rsv irap vcl23";
+        case H265NaluType::MMP_H265_NALU_TYPE_VPS_NUT: return "vps nut";
+        case H265NaluType::MMP_H265_NALU_TYPE_SPS_NUT: return "sps nut";
+        case H265NaluType::MMP_H265_NALU_TYPE_PPS_NUT: return "pps nut";
+        case H265NaluType::MMP_H265_NALU_TYPE_AUD_NUT: return "aud nut";
+        case H265NaluType::MMP_H265_NALU_TYPE_EOS_NUT: return "eos nut";
+        case H265NaluType::MMP_H265_NALU_TYPE_EOB_NUT: return "eob nut";
+        case H265NaluType::MMP_H265_NALU_TYPE_FD_NUT: return "fd nut";
+        case H265NaluType::MMP_H265_NALU_TYPE_PREFIX_SEI_NUT: return "prefix sei nut";
+        case H265NaluType::MMP_H265_NALU_TYPE_SUFFIX_SEI_NUT: return "suffix sei nut";
+        default:
+            return "unkonwn";
+    }
+}
+
 void Usage()
 {
     std::stringstream ss;
@@ -242,7 +282,7 @@ int main(int argc, char* argv[])
 #else /* fast but a bit complicated  */
     AbstractH26xByteReader::ptr byteReader = std::make_shared<CacheFileH264ByteReader>(std::string(argv[1]));
 #endif
-    if (std::string(argv[1]).find(".h264") == std::string::npos)
+    if (std::string(argv[1]).find(".h264") != std::string::npos)
     {
         H26xBinaryReader::ptr binaryReader = std::make_shared<H26xBinaryReader>(byteReader);
         H264Deserialize::ptr deserialize = std::make_shared<H264Deserialize>();
@@ -256,7 +296,7 @@ int main(int argc, char* argv[])
             H264NalSyntax::ptr nal = std::make_shared<H264NalSyntax>();
             auto start = std::chrono::system_clock::now();
             res = deserialize->DeserializeByteStreamNalUnit(binaryReader, nal);
-            std::cout << "(" << num << ")" << "  "  << "[" << NalUintTypeToStr(nal->nal_unit_type) << "]" 
+            std::cout << "(" << num << ")" << "  "  << "[" << H264NalUintTypeToStr(nal->nal_unit_type) << "]" 
                     << " cost time :" << (std::chrono::system_clock::now() - start).count() / (1000 * 1000) << " ms"
                     << std::endl;
             if (res)
@@ -266,10 +306,29 @@ int main(int argc, char* argv[])
         } while (res && !binaryReader->Eof());
         std::cout << "total cost time : " << (std::chrono::system_clock::now() - begin).count() / (1000 * 1000) << "ms";
     }
-    else if (std::string::npos && std::string(argv[1]).find(".h265") == std::string::npos)
+    else if (std::string::npos && std::string(argv[1]).find(".h265") != std::string::npos)
     {
         H26xBinaryReader::ptr binaryReader = std::make_shared<H26xBinaryReader>(byteReader);
         H265Deserialize::ptr deserialize = std::make_shared<H265Deserialize>();
+        std::vector<H265NalSyntax::ptr> nals;
+        bool res = true;
+        int num = 0;
+        auto begin = std::chrono::system_clock::now();
+        do
+        {
+            num++;
+            H265NalSyntax::ptr nal = std::make_shared<H265NalSyntax>();
+            auto start = std::chrono::system_clock::now();
+            res = deserialize->DeserializeByteStreamNalUnit(binaryReader, nal);
+            std::cout << "(" << num << ")" << "  "  << "[" << H265NalUintTypeToStr(nal->header->nal_unit_type) << "]" 
+                    << " cost time :" << (std::chrono::system_clock::now() - start).count() / (1000 * 1000) << " ms"
+                    << std::endl;
+            if (res)
+            {
+                nals.push_back(nal);
+            }
+        } while (res && !binaryReader->Eof());
+        std::cout << "total cost time : " << (std::chrono::system_clock::now() - begin).count() / (1000 * 1000) << "ms";
     }
 
     return 0;
