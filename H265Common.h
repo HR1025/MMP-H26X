@@ -10,10 +10,10 @@
 
 #include <cstdint>
 #include <map>
-#include <unordered_map>
 #include <string>
 #include <vector>
 #include <memory>
+#include <unordered_map>
 
 namespace Mmp
 {
@@ -836,6 +836,112 @@ public:
 };
 
 /**
+ * @brief ITU-T H.265 (2021) - D.2.3 Picture timing SEI message syntax
+ */
+class H264SeiPicTimingSyntax
+{
+public:
+    using ptr = std::shared_ptr<H264SeiPicTimingSyntax>;
+public:
+    H264SeiPicTimingSyntax();
+    ~H264SeiPicTimingSyntax() = default;
+public:
+    uint8_t  pic_struct;
+    uint8_t  source_scan_type;
+    uint8_t  duplicate_flag;
+    uint32_t au_cpb_removal_delay_minus1;
+    uint32_t pic_dpb_output_delay;
+    uint32_t pic_dpb_output_du_delay;
+    uint32_t num_decoding_units_minus1;
+    uint8_t  du_common_cpb_removal_delay_flag;
+    uint32_t du_common_cpb_removal_delay_increment_minus1;
+    std::vector<uint32_t> num_nalus_in_du_minus1;
+    std::vector<uint32_t> du_cpb_removal_delay_increment_minus1;
+};
+
+/**
+ * @brief ITU-T H.265 (2021) - D.2.20 Decoded picture hash SEI message syntax
+ */
+class H265SeiDecodedPictureHashSyntax
+{
+public:
+    using ptr = std::shared_ptr<H265SeiDecodedPictureHashSyntax>;
+public:
+    H265SeiDecodedPictureHashSyntax();
+    ~H265SeiDecodedPictureHashSyntax() = default;
+public:
+    uint8_t  hash_type;
+    std::vector<std::vector<uint8_t>> picture_md5;
+    std::vector<uint16_t> picture_crc;
+    std::vector<uint32_t> picture_checksum;
+};
+
+/**
+ * @brief ITU-T H.265 (2021) - D.2.21 Active parameter sets SEI message syntax
+ */
+class H265SeiActiveParameterSetsSyntax
+{
+public:
+    using ptr = std::shared_ptr<H265SeiActiveParameterSetsSyntax>;
+public:
+    H265SeiActiveParameterSetsSyntax();
+    ~H265SeiActiveParameterSetsSyntax() = default;
+public:
+    uint8_t  active_video_parameter_set_id;
+    uint8_t  self_contained_cvs_flag;
+    uint8_t  no_parameter_set_update_flag;
+    uint32_t num_sps_ids_minus1;
+    std::vector<uint32_t> active_seq_parameter_set_id;
+    std::vector<uint32_t> layer_sps_idx;
+};
+
+/**
+ * @brief ITU-T H.265 (2021) - D.2.27 Time code SEI message syntax
+ */
+class H265SeiTimeCodeSyntax
+{
+public:
+    using ptr = std::shared_ptr<H265SeiTimeCodeSyntax>;
+public:
+    H265SeiTimeCodeSyntax();
+    ~H265SeiTimeCodeSyntax() = default;
+public:
+    uint8_t num_clock_ts;
+    std::vector<uint8_t>  clock_timestamp_flag;
+    std::vector<uint8_t>  units_field_based_flag;
+    std::vector<uint8_t>  counting_type;
+    std::vector<uint8_t>  full_timestamp_flag;
+    std::vector<uint8_t>  discontinuity_flag;
+    std::vector<uint8_t>  cnt_dropped_flag;
+    std::vector<uint16_t> n_frames;
+    std::vector<uint8_t>  seconds_value;
+    std::vector<uint8_t>  minutes_value;
+    std::vector<uint8_t>  hours_value;
+    std::vector<uint8_t>  seconds_flag;
+    std::vector<uint8_t>  minutes_flag;
+    std::vector<uint8_t>  hours_flag;
+    std::vector<uint8_t>  time_offset_length;
+    std::vector<int32_t>  time_offset_value;
+};
+
+class H265SeiMessageSyntax
+{
+public:
+    using ptr = std::shared_ptr<H265SeiMessageSyntax>;
+public:
+    H265SeiMessageSyntax();
+    ~H265SeiMessageSyntax() = default;
+public:
+    uint64_t payloadType;
+    uint64_t payloadSize;
+public:
+    H265SeiDecodedPictureHashSyntax::ptr dph;
+    H264SeiPicTimingSyntax::ptr pt;
+    H265SeiActiveParameterSetsSyntax::ptr aps;
+    H265SeiTimeCodeSyntax::ptr tc;
+};
+
+/**
  * @sa ITU-T H.265 (2021) - 7.3.1.2 NAL unit header syntax
  */
 class H265NalUnitHeaderSyntax
@@ -852,16 +958,20 @@ public:
     uint8_t  nuh_temporal_id_plus1;
 };
 
-class H265NalUnitSyntax
+class H265NalSyntax
 {
 public:
-    using ptr = std::shared_ptr<H265NalUnitSyntax>;
+    using ptr = std::shared_ptr<H265NalSyntax>;
 public:
-    H265NalUnitSyntax() = default;
-    ~H265NalUnitSyntax() = default;
+    H265NalSyntax() = default;
+    ~H265NalSyntax() = default;
 public:
     H265NalUnitHeaderSyntax::ptr header;
-    // TODO
+    H265VPSSyntax::ptr           vps;
+    H265SpsSyntax::ptr           sps;
+    H265PpsSyntax::ptr           pps;
+    H265SeiMessageSyntax::ptr    sei;
+    H265SliceHeaderSyntax::ptr   slice;
 };
 
 class H265ContextSyntax

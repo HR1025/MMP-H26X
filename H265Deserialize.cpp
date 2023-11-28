@@ -14,6 +14,177 @@ namespace Mmp
 namespace Codec
 {
 
+H265Deserialize::H265Deserialize()
+{
+    _contex = std::make_shared<H265ContextSyntax>();
+}
+
+bool H265Deserialize::DeserializeByteStreamNalUnit(H26xBinaryReader::ptr br, H265NalSyntax::ptr nal)
+{
+    // See also : ITU-T H.265 (2021) - B.2.1 Byte stream NAL unit syntax
+    try
+    {
+        uint32_t next_24_bits = 0;
+        br->U(24, next_24_bits, true);
+        while (next_24_bits != 0x000001)
+        {
+            if ((next_24_bits & 0xFFFF) == 0)
+            {
+                br->Skip(8);
+            }
+            else if ((next_24_bits & 0xFF) == 0)
+            {
+                br->Skip(16);
+            }
+            else
+            {
+                br->Skip(32);
+            }
+            br->U(24, next_24_bits, true);
+        }
+        br->Skip(24); // start_code_prefix_one_3bytes /* equal to 0x000001 */
+        if (!DeserializeNalSyntax(br, nal))
+        {
+            return false;
+        }
+        while (br->more_data_in_byte_stream())
+        {
+            br->U(24, next_24_bits, true);
+            if (next_24_bits != 0x000001)
+            {
+                if ((next_24_bits & 0xFFFF) == 0)
+                {
+                    br->Skip(8);
+                }
+                else if ((next_24_bits & 0xFF) == 0)
+                {
+                    br->Skip(16);
+                }
+                else
+                {
+                    br->Skip(32);
+                }
+            }
+            else
+            {
+                break;
+            }
+        }
+        return true;
+    }
+    catch (const std::out_of_range& /* eof */)
+    {
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
+bool H265Deserialize::DeserializeNalSyntax(H26xBinaryReader::ptr br, H265NalSyntax::ptr nal)
+{
+    // See also : ITU-T H.265 (2021) - B.2.1 Byte stream NAL unit syntax
+    try
+    {
+        br->BeginNalUnit();
+        nal->header = std::make_shared<H265NalUnitHeaderSyntax>();
+        if (!DeserializeNalHeaderSyntax(br, nal->header))
+        {
+            assert(false);
+            return false;
+        }
+        switch (nal->header->nal_unit_type) 
+        {
+            case H265NaluType::MMP_H265_NALU_TYPE_VPS_NUT:
+            {
+                nal->vps = std::make_shared<H265VPSSyntax>();
+                if (!DeserializeVPSSyntax(br, nal->vps))
+                {
+                    assert(false);
+                    return false;
+                }
+                break;
+            }
+            case H265NaluType::MMP_H265_NALU_TYPE_SPS_NUT:
+            {
+                nal->sps = std::make_shared<H265SpsSyntax>();
+                if (!DeserializeSpsSyntax(br, nal->sps))
+                {
+                    assert(false);
+                    return false;
+                }
+                break;
+            }
+            case H265NaluType::MMP_H265_NALU_TYPE_PPS_NUT:
+            {
+                nal->pps = std::make_shared<H265PpsSyntax>();
+                if (!DeserializePpsSyntax(br, nal->pps))
+                {
+                    assert(false);
+                    return false;
+                }
+                break;
+            }
+            case H265NaluType::MMP_H265_NALU_TYPE_TRAIL_R:
+            case H265NaluType::MMP_H265_NALU_TYPE_TRAIL_N:
+            case H265NaluType::MMP_H265_NALU_TYPE_TSA_N:
+            case H265NaluType::MMP_H265_NALU_TYPE_TSA_R:
+            case H265NaluType::MMP_H265_NALU_TYPE_STSA_N:
+            case H265NaluType::MMP_H265_NALU_TYPE_STSA_R:
+            case H265NaluType::MMP_H265_NALU_TYPE_BLA_W_LP:
+            case H265NaluType::MMP_H265_NALU_TYPE_BLA_W_RADL:
+            case H265NaluType::MMP_H265_NALU_TYPE_BLA_N_LP:
+            case H265NaluType::MMP_H265_NALU_TYPE_IDR_W_RADL:
+            case H265NaluType::MMP_H265_NALU_TYPE_IDR_N_LP:
+            case H265NaluType::MMP_H265_NALU_TYPE_CRA_NUT:
+            case H265NaluType::MMP_H265_NALU_TYPE_RADL_N:
+            case H265NaluType::MMP_H265_NALU_TYPE_RADL_R:
+            case H265NaluType::MMP_H265_NALU_TYPE_RASL_N:
+            case H265NaluType::MMP_H265_NALU_TYPE_RASL_R:
+            {
+                nal->slice = std::make_shared<H265SliceHeaderSyntax>();
+                if (!DeserializeSliceHeaderSyntax(br, nal->header, nal->slice))
+                {
+                    assert(false);
+                    break;
+                }
+                break;
+            }
+            default:
+                assert(false);
+                break;
+        }
+        br->EndNalUnit();
+        return true;
+    }
+    catch (const std::out_of_range& /* eof */)
+    {
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    } 
+}
+
+bool H265Deserialize::DeserializeNalHeaderSyntax(H26xBinaryReader::ptr br, H265NalUnitHeaderSyntax::ptr nalHeader)
+{
+    // See also : ITU-T H.265 (2021) - 7.3.1.2 NAL unit header syntax
+    try
+    {
+        br->U(1, nalHeader->forbidden_zero_bit);
+        br->U(6, nalHeader->nal_unit_type);
+        br->U(6, nalHeader->nuh_layer_id);
+        br->U(3, nalHeader->nuh_temporal_id_plus1);
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    } 
+}
+
 bool H265Deserialize::DeserializePpsSyntax(H26xBinaryReader::ptr br, H265PpsSyntax::ptr pps)
 {
     // See also : ITU-T H.265 (2021) - 7.3.2.3.1 General picture parameter set RBSP syntax
@@ -82,13 +253,13 @@ bool H265Deserialize::DeserializePpsSyntax(H26xBinaryReader::ptr br, H265PpsSynt
             br->U(1, pps->uniform_spacing_flag);
             if (!pps->uniform_spacing_flag)
             {
-                pps->column_width_minus1.resize(pps->num_tile_columns_minus1 + 1);
-                pps->row_height_minus1.resize(pps->num_tile_columns_minus1 + 1);
+                pps->column_width_minus1.resize(pps->num_tile_columns_minus1);
+                pps->row_height_minus1.resize(pps->num_tile_rows_minus1);
                 for (uint32_t i=0; i<pps->num_tile_columns_minus1; i++)
                 {
                     br->UE(pps->column_width_minus1[i]);
                 }
-                for (uint32_t i=0; i<pps->num_tile_columns_minus1; i++)
+                for (uint32_t i=0; i<pps->num_tile_rows_minus1; i++)
                 {
                     br->UE(pps->row_height_minus1[i]);
                 }
@@ -469,6 +640,7 @@ bool H265Deserialize::DeserializeVPSSyntax(H26xBinaryReader::ptr br, H265VPSSynt
             }
         }
         br->rbsp_trailing_bits();
+        _contex->vpsSet[vps->vps_video_parameter_set_id] = vps;
         return true;
     }
     catch (...)
@@ -477,11 +649,13 @@ bool H265Deserialize::DeserializeVPSSyntax(H26xBinaryReader::ptr br, H265VPSSynt
     }
 }
 
-bool H265Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H265NalUnitHeaderSyntax::ptr nal, H265SpsSyntax::ptr sps, H265PpsSyntax::ptr pps, H265SliceHeaderSyntax::ptr slice)
+bool H265Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H265NalUnitHeaderSyntax::ptr nal,  H265SliceHeaderSyntax::ptr slice)
 {
     // See also : ITU-T H.265 (2021) - 7.3.6.1 General slice segment header syntax
     try
     {
+        H265SpsSyntax::ptr sps;
+        H265PpsSyntax::ptr pps;
         int32_t CuQpDeltaVal = 0;
         br->U(1, slice->first_slice_segment_in_pic_flag);
         if (nal->nal_unit_type >= H265NaluType::MMP_H265_NALU_TYPE_BLA_W_LP && nal->nal_unit_type <= H265NaluType::MMP_H265_NALU_TYPE_RSV_IRAP_VCL23)
@@ -489,6 +663,18 @@ bool H265Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
             br->U(1, slice->no_output_of_prior_pics_flag);
         }
         br->UE(slice->slice_pic_parameter_set_id);
+        if (_contex->ppsSet.count(slice->slice_pic_parameter_set_id) == 0)
+        {
+            assert(false);
+            return false;
+        }
+        pps = _contex->ppsSet[slice->slice_pic_parameter_set_id];
+        if (_contex->spsSet.count(pps->pps_seq_parameter_set_id) == 0)
+        {
+            assert(false);
+            return false;
+        }
+        sps = _contex->spsSet[pps->pps_seq_parameter_set_id];
         if (!slice->first_slice_segment_in_pic_flag)
         {
             if (pps->dependent_slice_segments_enabled_flag)
@@ -1114,6 +1300,200 @@ bool H265Deserialize::DeserializePredWeightTableSyntax(H26xBinaryReader::ptr br,
     try
     {
         // TODO
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
+bool H265Deserialize::DeserializeSeiDecodedPictureHash(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265SeiDecodedPictureHashSyntax::ptr dph)
+{
+    // See also : ITU-T H.265 (2021) - D.2.20 Decoded picture hash SEI message syntax
+    try
+    {
+        br->U(8, dph->hash_type);
+        if (dph->hash_type == 0)
+        {
+            dph->picture_md5.resize(sps->chroma_format_idc == 0 ? 1:3);
+        }
+        else if (dph->hash_type == 1)
+        {
+            dph->picture_crc.resize(sps->chroma_format_idc == 0 ? 1:3);
+        }
+        else if (dph->hash_type == 2)
+        {
+            dph->picture_checksum.resize(sps->chroma_format_idc == 0 ? 1:3);
+        }
+        for (uint32_t cIdx=0; cIdx<(sps->chroma_format_idc == 0 ? 1:3); cIdx++)
+        {
+            if (dph->hash_type == 0)
+            {
+                dph->picture_md5[cIdx].resize(16);
+                for (uint8_t i=0; i<16; i++)
+                {
+                    br->B8(dph->picture_md5[cIdx][i]);
+                }
+            }
+            else if (dph->hash_type == 1)
+            {
+                br->U(16, dph->picture_crc[cIdx]);
+            }
+            else if (dph->hash_type == 2)
+            {
+                br->U(32, dph->picture_checksum[cIdx]);
+            }
+        }
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
+bool H265Deserialize::DeserializeSeiPicTimingSyntax(H26xBinaryReader::ptr br, H265VuiSyntax::ptr vui, H265HrdSyntax::ptr hrd, H264SeiPicTimingSyntax::ptr pt)
+{
+    // See also : ITU-T H.265 (2021) - D.2.3 Picture timing SEI message syntax
+    try
+    {
+        if (vui->frame_field_info_present_flag)
+        {
+            br->U(4, pt->pic_struct);
+            br->U(2, pt->source_scan_type);
+            br->U(1, pt->duplicate_flag);
+        }
+        uint8_t CpbDpbDelaysPresentFlag = (hrd->nal_hrd_parameters_present_flag || hrd->vcl_hrd_parameters_present_flag) ? 1 : 0;
+        if (CpbDpbDelaysPresentFlag)
+        {
+            br->U(hrd->au_cpb_removal_delay_length_minus1+1, pt->au_cpb_removal_delay_minus1);
+            br->U(hrd->dpb_output_delay_length_minus1+1, pt->pic_dpb_output_delay);
+            if (hrd->sub_pic_hrd_params_present_flag)
+            {
+                br->U(hrd->dpb_output_delay_du_length_minus1+1, pt->pic_dpb_output_du_delay);
+            }
+            if (hrd->sub_pic_hrd_params_present_flag &&
+                hrd->sub_pic_cpb_params_in_pic_timing_sei_flag
+            )
+            {
+                br->UE(pt->num_decoding_units_minus1);
+                br->U(1, pt->du_common_cpb_removal_delay_flag);
+                if (pt->du_common_cpb_removal_delay_flag)
+                {
+                    br->U(hrd->du_cpb_removal_delay_increment_length_minus1+1, pt->du_common_cpb_removal_delay_increment_minus1);
+                }
+                pt->num_nalus_in_du_minus1.resize(pt->num_decoding_units_minus1 + 1);
+                pt->du_cpb_removal_delay_increment_minus1.resize(pt->num_decoding_units_minus1 + 1);
+                for (uint32_t i=0; i<=pt->num_decoding_units_minus1; i++)
+                {
+                    br->UE(pt->num_nalus_in_du_minus1[i]);
+                    if (!pt->du_common_cpb_removal_delay_flag && i<pt->num_decoding_units_minus1)
+                    {
+                        br->U(hrd->du_cpb_removal_delay_increment_length_minus1+1, pt->du_cpb_removal_delay_increment_minus1[i]);
+                    }
+                }
+            }
+        }
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
+bool H265Deserialize::DeserializeSeiActiveParameterSetsSyntax(H26xBinaryReader::ptr br, H265VPSSyntax::ptr vps, H265SeiActiveParameterSetsSyntax::ptr aps)
+{
+    // See also : ITU-T H.265 (2021) - D.2.21 Active parameter sets SEI message syntax
+    try
+    {
+        br->U(4, aps->active_video_parameter_set_id);
+        br->U(1, aps->self_contained_cvs_flag);
+        br->U(1, aps->no_parameter_set_update_flag);
+        br->UE(aps->num_sps_ids_minus1);
+        aps->active_seq_parameter_set_id.resize(aps->num_sps_ids_minus1 + 1);
+        for (uint32_t i=0; i<=aps->num_sps_ids_minus1; i++)
+        {
+            br->UE(aps->active_seq_parameter_set_id[i]);
+        }
+        uint32_t MaxLayersMinus1 = std::min((uint8_t)62, vps->vps_max_layers_minus1);
+        aps->layer_sps_idx.resize(MaxLayersMinus1 + 1);
+        for (uint8_t i=vps->vps_base_layer_internal_flag; i<=MaxLayersMinus1; i++)
+        {
+            br->UE(aps->layer_sps_idx[i]);
+        }
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
+bool H265Deserialize::DeserializeSeiActiveParameterSetsSyntax(H26xBinaryReader::ptr br, H265SeiTimeCodeSyntax::ptr tc)
+{
+    // See also : ITU-T H.265 (2021) - D.2.27 Time code SEI message syntax
+    try
+    {
+        br->U(2, tc->num_clock_ts);
+        tc->clock_timestamp_flag.resize(tc->num_clock_ts + 1);
+        tc->units_field_based_flag.resize(tc->num_clock_ts + 1);
+        tc->counting_type.resize(tc->num_clock_ts + 1);
+        tc->full_timestamp_flag.resize(tc->num_clock_ts + 1);
+        tc->discontinuity_flag.resize(tc->num_clock_ts + 1);
+        tc->cnt_dropped_flag.resize(tc->num_clock_ts + 1);
+        tc->n_frames.resize(tc->num_clock_ts + 1);
+        tc->seconds_value.resize(tc->num_clock_ts + 1);
+        tc->minutes_value.resize(tc->num_clock_ts + 1);
+        tc->hours_value.resize(tc->num_clock_ts + 1);
+        tc->seconds_flag.resize(tc->num_clock_ts + 1);
+        tc->minutes_flag.resize(tc->num_clock_ts + 1);
+        tc->hours_flag.resize(tc->num_clock_ts + 1);
+        tc->time_offset_length.resize(tc->num_clock_ts + 1);
+        tc->time_offset_value.resize(tc->num_clock_ts + 1);
+        for (uint8_t i=0; i<=tc->num_clock_ts; i++)
+        {
+            br->U(1, tc->clock_timestamp_flag[i]);
+            if (tc->clock_timestamp_flag[i])
+            {
+                br->U(1, tc->units_field_based_flag[i]);
+                br->U(5, tc->counting_type[i]);
+                br->U(1, tc->full_timestamp_flag[i]);
+                br->U(1, tc->discontinuity_flag[i]);
+                br->U(1, tc->cnt_dropped_flag[i]);
+                br->U(9, tc->n_frames[i]);
+                if (tc->full_timestamp_flag[i])
+                {
+                    br->U(6, tc->seconds_value[i]);
+                    br->U(6, tc->minutes_value[i]);
+                    br->U(5, tc->hours_value[i]);
+                }
+                else 
+                {
+                    br->U(1, tc->seconds_flag[i]);
+                    if (tc->seconds_flag[i])
+                    {
+                        br->U(6, tc->seconds_value[i]);
+                        br->U(1, tc->minutes_flag[i]);
+                        if (tc->minutes_flag[i])
+                        {
+                            br->U(6, tc->minutes_value[i]);
+                            br->U(1, tc->hours_flag[i]);
+                            if (tc->hours_flag[i])
+                            {
+                                br->U(5, tc->hours_value[i]);
+                            }
+                        }
+                    }
+                }
+            }
+            br->U(5, tc->time_offset_length[i]);
+            if (tc->time_offset_length[i] > 0)
+            {
+                br->I(tc->time_offset_length[i], tc->time_offset_value[i]);
+            }
+        }
         return true;
     }
     catch (...)

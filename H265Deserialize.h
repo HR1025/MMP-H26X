@@ -25,13 +25,19 @@ class H265Deserialize
 public:
     using ptr = std::shared_ptr<H265Deserialize>;
 public:
-    H265Deserialize() = default;
+    H265Deserialize();
     ~H265Deserialize() = default;
 public:
+    /**
+     * @note for H264 Annex B type, common in network stream
+     */
+    bool DeserializeByteStreamNalUnit(H26xBinaryReader::ptr br, H265NalSyntax::ptr nal);
+    bool DeserializeNalSyntax(H26xBinaryReader::ptr br, H265NalSyntax::ptr nal);
+    bool DeserializeNalHeaderSyntax(H26xBinaryReader::ptr br, H265NalUnitHeaderSyntax::ptr nalHeader); 
     bool DeserializePpsSyntax(H26xBinaryReader::ptr br, H265PpsSyntax::ptr pps);
     bool DeserializeSpsSyntax(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps);
     bool DeserializeVPSSyntax(H26xBinaryReader::ptr br, H265VPSSyntax::ptr vps);
-    bool DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H265NalUnitHeaderSyntax::ptr nal, H265SpsSyntax::ptr sps, H265PpsSyntax::ptr pps, H265SliceHeaderSyntax::ptr slice);
+    bool DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H265NalUnitHeaderSyntax::ptr nal, H265SliceHeaderSyntax::ptr slice);
 private: /* pps */
     bool DeserializePps3dSyntax(H26xBinaryReader::ptr br, H265PpsSyntax::ptr pps, H265Pps3dSyntax::ptr pps3d);
     bool DeserializePpsRangeSyntax(H26xBinaryReader::ptr br, H265PpsSyntax::ptr pps, H265PpsRangeSyntax::ptr ppsRange);
@@ -44,6 +50,11 @@ private: /* sps */
 private: /* slice */
     bool DeserializeRefPicListsModificationSyntax(H26xBinaryReader::ptr br, H265SliceHeaderSyntax::ptr slice, H265RefPicListsModificationSyntax::ptr rplm);
     bool DeserializePredWeightTableSyntax(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265SliceHeaderSyntax::ptr slice, H265PredWeightTableSyntax::ptr pwt);
+private: /* sei */
+    bool DeserializeSeiDecodedPictureHash(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265SeiDecodedPictureHashSyntax::ptr dph);
+    bool DeserializeSeiPicTimingSyntax(H26xBinaryReader::ptr br, H265VuiSyntax::ptr vui, H265HrdSyntax::ptr hrd, H264SeiPicTimingSyntax::ptr pt);
+    bool DeserializeSeiActiveParameterSetsSyntax(H26xBinaryReader::ptr br, H265VPSSyntax::ptr vps, H265SeiActiveParameterSetsSyntax::ptr aps);
+    bool DeserializeSeiActiveParameterSetsSyntax(H26xBinaryReader::ptr br, H265SeiTimeCodeSyntax::ptr tc);
 private:
     bool DeserializeHrdSyntax(H26xBinaryReader::ptr br, uint8_t commonInfPresentFlag, uint32_t maxNumSubLayersMinus, H265HrdSyntax::ptr hrd);
     bool DeserializeSubLayerHrdSyntax(H26xBinaryReader::ptr br, uint32_t subLayerId, H265HrdSyntax::ptr hrd, H265SubLayerHrdSyntax::ptr slHrd);
