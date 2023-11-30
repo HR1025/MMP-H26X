@@ -14,6 +14,22 @@ namespace Mmp
 namespace Codec
 {
 
+static uint32_t GetCurrRpsIdx(H265SpsSyntax::ptr sps, H265SliceHeaderSyntax::ptr slice)
+{
+    return slice->short_term_ref_pic_set_sps_flag == 1 ? slice->short_term_ref_pic_set_idx : sps->num_short_term_ref_pic_sets;
+}
+
+static uint32_t GetPicSizeInCtbsY(H265SpsSyntax::ptr sps, H265SliceHeaderSyntax::ptr slice)
+{
+    uint32_t MinCbLog2SizeY = sps->log2_min_luma_coding_block_size_minus3 + 3; // (7-10)
+    uint32_t CtbLog2SizeY = MinCbLog2SizeY + sps->log2_diff_max_min_luma_coding_block_size; // (7-11)
+    uint32_t CtbSizeY = 1 << CtbLog2SizeY; // (7-13)
+    uint32_t PicWidthInCtbsY = std::ceil(sps->pic_width_in_luma_samples / CtbSizeY); // (7-15)
+    uint32_t PicHeightInCtbsY = std::ceil(sps->pic_height_in_luma_samples / CtbSizeY); // (7-17)
+    uint32_t PicSizeInCtbsY = PicWidthInCtbsY * PicHeightInCtbsY; // (7-19)
+    return PicSizeInCtbsY;
+}
+
 H265Deserialize::H265Deserialize()
 {
     _contex = std::make_shared<H265ContextSyntax>();
@@ -680,10 +696,11 @@ bool H265Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
             if (pps->dependent_slice_segments_enabled_flag)
             {
                 br->U(1, slice->dependent_slice_segment_flag);
-                // TODO
+                uint32_t PicSizeInCtbsY = GetPicSizeInCtbsY(sps, slice);
+                br->U((uint32_t)std::ceil(std::log2(PicSizeInCtbsY)), slice->slice_segment_address);
             }
         }
-        if (!pps->dependent_slice_segments_enabled_flag)
+        if (!slice->dependent_slice_segment_flag)
         {
             slice->slice_reserved_flag.resize(pps->num_extra_slice_header_bits);
             for (uint32_t i=0; i<pps->num_extra_slice_header_bits; i++)
@@ -713,7 +730,7 @@ bool H265Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
                     }
                     else if (sps->num_short_term_ref_pic_sets > 1)
                     {
-                        // TODO : short_term_ref_pic_set_idx
+                        br->U(std::ceil(std::log2(sps->num_short_term_ref_pic_sets)), slice->short_term_ref_pic_set_idx);                        
                     }
                     if (sps->long_term_ref_pics_present_flag)
                     {
@@ -729,23 +746,23 @@ bool H265Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
                         slice->delta_poc_msb_cycle_lt.resize(slice-> num_long_term_sps + slice->num_long_term_pics + 1);
                         for (uint32_t i=0; i<slice-> num_long_term_sps + slice->num_long_term_pics; i++)
                         {
-                            // if (i<sps->slice-> num_long_term_sps)
-                            // {
-                            //     if (sps->num_long_term_ref_pics_sps > 1)
-                            //     {
-                            //         // TODO : lt_idx_sps
-                            //     }
-                            //     else
-                            //     {
-                            //         // TODO : poc_lsb_lt
-                            //         br->U(1, slice->used_by_curr_pic_lt_flag[i]);
-                            //     }
-                            //     br->U(1, slice->delta_poc_msb_present_flag[i]);
-                            //     if (slice->delta_poc_msb_present_flag[i])
-                            //     {
-                            //         br->UE(slice->delta_poc_msb_cycle_lt[i]);
-                            //     }
-                            // }
+                            if (i < slice->num_long_term_sps)
+                            {
+                                if (sps->num_long_term_ref_pics_sps > 1)
+                                {
+                                    br->U(std::ceil(std::log2(sps->num_long_term_ref_pics_sps)), slice->lt_idx_sps[i]);
+                                }
+                                else
+                                {
+                                    br->U(sps->log2_max_pic_order_cnt_lsb_minus4 + 4, slice->poc_lsb_lt[i]);
+                                    br->U(1, slice->used_by_curr_pic_lt_flag[i]);
+                                }
+                                br->U(1, slice->delta_poc_msb_present_flag[i]);
+                                if (slice->delta_poc_msb_present_flag[i])
+                                {
+                                    br->UE(slice->delta_poc_msb_cycle_lt[i]);
+                                }
+                            }
                         }
                         if (sps->sps_temporal_mvp_enabled_flag)
                         {
@@ -773,6 +790,15 @@ bool H265Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
                             }
                         }
                         uint32_t NumPicTotalCurr = 0; // TODO (7-57)
+                        {
+                            uint32_t CurrRpsIdx = GetCurrRpsIdx(sps, slice);
+
+                        }
+                        // NumNegativePics
+                        // UsedByCurrPicS0
+                        // NumPositivePics
+                        // UsedByCurrPicS1
+                        // 
                         if (pps->lists_modification_present_flag && NumPicTotalCurr>1)
                         {
                             slice->rplm = std::make_shared<H265RefPicListsModificationSyntax>();
@@ -1933,13 +1959,24 @@ bool H265Deserialize::DeserializeStRefPicSetSyntax(H26xBinaryReader::ptr br, H26
         else
         {
             br->UE(stps->num_negative_pics);
+            _contex->NumNegativePics[stRpsIdx] = stps->num_negative_pics; // (7-63)
             br->UE(stps->num_positive_pics);
+            _contex->NumPositivePics[stRpsIdx] = stps->num_positive_pics; // (7-64)
             stps->delta_poc_s0_minus1.resize(stps->num_negative_pics);
             stps->used_by_curr_pic_s0_flag.resize(stps->num_negative_pics);
             for (uint32_t i=0; i<stps->num_negative_pics; i++)
             {
                 br->UE(stps->delta_poc_s0_minus1[i]);
                 br->U(1, stps->used_by_curr_pic_s0_flag[i]);
+                _contex->UsedByCurrPicS0[stRpsIdx][i] = stps->used_by_curr_pic_s0_flag[i]; // (7-65)
+                if (i == 0)
+                {
+                    _contex->DeltaPocS0[stRpsIdx][i] = -(stps->delta_poc_s0_minus1[i] + 1); // (7-67)
+                }
+                else
+                {
+                    _contex->DeltaPocS0[stRpsIdx][i] = _contex->DeltaPocS0[stRpsIdx][i-1] - (stps->delta_poc_s0_minus1[i] + 1); // (7-68)
+                }
             }
             stps->delta_poc_s1_minus1.resize(stps->num_positive_pics);
             stps->used_by_curr_pic_s1_flag.resize(stps->num_positive_pics);
@@ -1947,12 +1984,18 @@ bool H265Deserialize::DeserializeStRefPicSetSyntax(H26xBinaryReader::ptr br, H26
             {
                 br->UE(stps->delta_poc_s1_minus1[i]);
                 br->U(1, stps->used_by_curr_pic_s1_flag[i]);
-            }
+                _contex->UsedByCurrPicS1[stRpsIdx][i] = stps->used_by_curr_pic_s1_flag[i]; // (7-66)
+                if (i == 0)
+                {
+                    _contex->DeltaPocS1[stRpsIdx][i] = stps->delta_poc_s1_minus1[i] + 1; // (7-68)
+                }
+                else
+                {
+                    _contex->DeltaPocS1[stRpsIdx][i] = _contex->DeltaPocS1[stRpsIdx][i-1] + (stps->delta_poc_s1_minus1[i] + 1); // (7-70)
+                }
+            }    
         }
-        // determine NumDeltaPocs (7-71)
-        {
-            stps->NumDeltaPocs = stps->num_negative_pics + stps->num_positive_pics;
-        }
+        _contex->NumDeltaPocs[stRpsIdx] = _contex->NumNegativePics[stRpsIdx] + _contex->NumNegativePics[stRpsIdx]; // (7-71)
         return true;
     }
     catch (...)

@@ -93,8 +93,6 @@ public:
     std::vector<uint8_t>  used_by_curr_pic_s0_flag;
     std::vector<uint32_t> delta_poc_s1_minus1;
     std::vector<uint8_t>  used_by_curr_pic_s1_flag;
-public:
-    uint32_t NumDeltaPocs;
 };
 
 /**
@@ -985,6 +983,14 @@ public:
     std::unordered_map<int32_t, H265VPSSyntax::ptr> vpsSet;
     std::unordered_map<int32_t, H265SpsSyntax::ptr> spsSet;
     std::unordered_map<int32_t, H265PpsSyntax::ptr> ppsSet;
+public:
+    std::unordered_map<uint32_t, uint32_t> NumNegativePics;
+    std::unordered_map<uint32_t, uint32_t> NumPositivePics;
+    std::unordered_map<uint32_t, std::unordered_map<uint32_t, uint8_t>> UsedByCurrPicS0;
+    std::unordered_map<uint32_t, std::unordered_map<uint32_t, uint8_t>> UsedByCurrPicS1;
+    std::unordered_map<uint32_t, std::unordered_map<uint32_t, int32_t>> DeltaPocS0;
+    std::unordered_map<uint32_t, std::unordered_map<uint32_t, int32_t>> DeltaPocS1;
+    std::unordered_map<uint32_t, uint32_t> NumDeltaPocs;
 };
 
 } // namespace Codec
