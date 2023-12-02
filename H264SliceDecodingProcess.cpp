@@ -4,6 +4,8 @@
 #include <iostream>
 #include <algorithm>
 
+#include "H26xUltis.h"
+
 namespace Mmp
 {
 namespace Codec
@@ -12,6 +14,16 @@ namespace Codec
 #ifndef ENABLE_MMP_SD_DEBUG
     #define ENABLE_MMP_SD_DEBUG 0
 #endif /* ENABLE_MMP_SD_DEBUG */
+
+#if ENABLE_MMP_SD_DEBUG
+#define MPP_H264_SD_LOG(fmt, ...)  do {\
+                                          char buf[512] = {0};\
+                                          sprintf(buf, fmt, ## __VA_ARGS__);\
+                                          H26x_LOG_INFO << buf << H26x_LOG_TERMINATOR;\
+                                      } while(0);
+#else
+#define MPP_H264_SD_LOG(fmt, ...) 
+#endif /* ENABLE_MMP_SD_DEBUG */ 
 
 constexpr int64_t no_long_term_frame_indices = -1;
 
@@ -212,11 +224,11 @@ void H264SliceDecodingProcess::DecodingProcessForPictureOrderCount(H264SpsSyntax
         DecodeH264PictureOrderCountType2(_prevPicture, sps,  slice, nal_ref_idc, picture);
     }
 
-#if ENABLE_MMP_SD_DEBUG
-    std::cout << "[POC] pic_order_cnt_type is(" << sps->pic_order_cnt_type  
-              << ") TopFieldOrderCnt(" << picture->TopFieldOrderCnt  
-              << ") BottomFieldOrderCnt(" << picture->BottomFieldOrderCnt << ")" << std::endl;
-#endif /* ENABLE_MMP_SD_DEBUG */
+    MPP_H264_SD_LOG("[POC] pic_order_cnt_type is(%d) TopFieldOrderCnt(%d) BottomFieldOrderCnt(%d)",
+            sps->pic_order_cnt_type,
+            picture->TopFieldOrderCnt,
+            picture->BottomFieldOrderCnt
+        )
 
     // Hint :
     //        When the current picture includes a
