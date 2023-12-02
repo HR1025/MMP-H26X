@@ -2,8 +2,8 @@
 // H26xUltis.h
 //
 // Library: Coedec
-// Package: H264
-// Module:  H264
+// Package: H26x
+// Module:  H26x
 // 
 
 #pragma once

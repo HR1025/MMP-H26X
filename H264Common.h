@@ -974,7 +974,7 @@ class H264PictureContext
 public:
     using ptr = std::shared_ptr<H264PictureContext>;
 public:
-    using cache = std::set<H264PictureContext::ptr>;
+    using cache = std::vector<H264PictureContext::ptr>;
 public:
     H264PictureContext();
     ~H264PictureContext() = default;
@@ -983,6 +983,8 @@ public:
     static constexpr uint64_t used_for_short_term_reference = 1 << 0U;
     static constexpr uint64_t used_for_long_term_reference = 1 << 1U;
     static constexpr uint64_t non_existing = 1 << 2U;
+public:
+    uint64_t id;
 public: /* inherit from nal unit */
     uint8_t   field_pic_flag;
     uint8_t   bottom_field_flag;
