@@ -1,12 +1,29 @@
 #include "H264SliceDecodingProcess.h"
 
 #include <cassert>
+#include <iostream>
 #include <algorithm>
+
+#include "H26xUltis.h"
 
 namespace Mmp
 {
 namespace Codec
 {
+
+#ifndef ENABLE_MMP_SD_DEBUG
+    #define ENABLE_MMP_SD_DEBUG 0
+#endif /* ENABLE_MMP_SD_DEBUG */
+
+#if ENABLE_MMP_SD_DEBUG
+#define MPP_H264_SD_LOG(fmt, ...)  do {\
+                                          char buf[512] = {0};\
+                                          sprintf(buf, fmt, ## __VA_ARGS__);\
+                                          H26x_LOG_INFO << buf << H26x_LOG_TERMINATOR;\
+                                      } while(0);
+#else
+#define MPP_H264_SD_LOG(fmt, ...) 
+#endif /* ENABLE_MMP_SD_DEBUG */ 
 
 constexpr int64_t no_long_term_frame_indices = -1;
 
@@ -18,7 +35,6 @@ static bool PictureIsSecondField(H264PictureContext::ptr picture)
 static H264PictureContext::ptr /* complementary picture */ FindComplementaryPicture(H264PictureContext::cache pictures, H264PictureContext::ptr picture)
 {
     H264PictureContext::ptr compPicture = nullptr;
-    assert(false); // TODO : long term picture
     if (PictureIsSecondField(picture)) // second filed
     {
         for (auto& _picture : pictures)
@@ -197,7 +213,7 @@ void H264SliceDecodingProcess::DecodingProcessForPictureOrderCount(H264SpsSyntax
 
     if (sps->pic_order_cnt_type == 0)
     {
-        DecodeH264PictureOrderCountType0(_prevPicture, sps, slice, picture);
+        DecodeH264PictureOrderCountType0(_prevPicture, sps, slice, nal_ref_idc, picture);
     }
     else if (sps->pic_order_cnt_type == 1)
     {
@@ -207,7 +223,13 @@ void H264SliceDecodingProcess::DecodingProcessForPictureOrderCount(H264SpsSyntax
     {
         DecodeH264PictureOrderCountType2(_prevPicture, sps,  slice, nal_ref_idc, picture);
     }
-    
+
+    MPP_H264_SD_LOG("[POC] pic_order_cnt_type is(%d) TopFieldOrderCnt(%d) BottomFieldOrderCnt(%d)",
+            sps->pic_order_cnt_type,
+            picture->TopFieldOrderCnt,
+            picture->BottomFieldOrderCnt
+        )
+
     // Hint :
     //        When the current picture includes a
     //        memory_management_control_operation equal to 5, after the decoding of the current picture, tempPicOrderCnt is set
@@ -228,7 +250,7 @@ void H264SliceDecodingProcess::DecodingProcessForPictureOrderCount(H264SpsSyntax
 /**
  * @sa ISO 14496/10(2020) - 8.2.1.1 Decoding process for picture order count type 0 
  */
-void H264SliceDecodingProcess::DecodeH264PictureOrderCountType0(H264PictureContext::ptr prevPictrue, H264SpsSyntax::ptr sps, H264SliceHeaderSyntax::ptr slice, H264PictureContext::ptr picture)
+void H264SliceDecodingProcess::DecodeH264PictureOrderCountType0(H264PictureContext::ptr prevPictrue, H264SpsSyntax::ptr sps, H264SliceHeaderSyntax::ptr slice, uint8_t nal_ref_idc, H264PictureContext::ptr picture)
 {
     int32_t prevPicOrderCntMsb = 0;
     int32_t prevPicOrderCntLsb = 0;
@@ -295,7 +317,14 @@ void H264SliceDecodingProcess::DecodeH264PictureOrderCountType0(H264PictureConte
         }
     }
     // update context
-    picture->prevPicOrderCntMsb = PicOrderCntMsb;
+    if (nal_ref_idc != 0)
+    {
+        picture->prevPicOrderCntMsb = PicOrderCntMsb;
+    }
+    else
+    {
+        picture->prevPicOrderCntMsb = prevPictrue->prevPicOrderCntMsb;
+    }
 }
 
 /**
@@ -1019,6 +1048,7 @@ void H264SliceDecodingProcess::AdaptiveMemoryControlDecodedReferencePicutreMarki
 H264SliceDecodingProcess::H264SliceDecodingProcess()
 {
     _prevPicture = nullptr;
+    _curId = 0;
 }
 
 H264SliceDecodingProcess::~H264SliceDecodingProcess()
@@ -1060,11 +1090,15 @@ void H264SliceDecodingProcess::SliceDecodingProcess(H264NalSyntax::ptr nal)
                 picture->field_pic_flag = nal->slice->field_pic_flag;
                 picture->bottom_field_flag = nal->slice->bottom_field_flag;
                 picture->pic_order_cnt_lsb = nal->slice->pic_order_cnt_lsb;
-                picture->long_term_frame_idx = nal->slice->drpm->long_term_frame_idx;
+                if (nal->nal_ref_idc != 0)
+                {
+                    picture->long_term_frame_idx = nal->slice->drpm->long_term_frame_idx;
+                }
                 picture->FrameNum = nal->slice->frame_num;
             }
             OnDecodingBegin();
             DecodingProcessForPictureOrderCount(sps, nal->slice, nal->nal_ref_idc, picture);
+            DecodeReferencePictureMarkingProcess(nal->slice, sps, _pictures, picture, nal->nal_ref_idc);
             if (nal->slice->slice_type == H264SliceType::MMP_H264_P_SLICE ||
                 nal->slice->slice_type == H264SliceType::MMP_H264_SP_SLICE ||
                 nal->slice->slice_type == H264SliceType::MMP_H264_B_SLICE
@@ -1073,7 +1107,8 @@ void H264SliceDecodingProcess::SliceDecodingProcess(H264NalSyntax::ptr nal)
                 DecodingProcessForReferencePictureListsConstruction(nal->slice, sps, _pictures, picture);
             }
             OnDecodingEnd();
-            _pictures.insert(picture);
+            picture->id = _curId++;
+            _pictures.push_back(picture);
             _prevPicture = picture;
             break;
         }
@@ -1085,6 +1120,21 @@ void H264SliceDecodingProcess::SliceDecodingProcess(H264NalSyntax::ptr nal)
 H264PictureContext::ptr H264SliceDecodingProcess::GetCurrentPictureContext()
 {
     return _prevPicture;
+}
+
+H264PictureContext::cache H264SliceDecodingProcess::GetAllPictures()
+{
+    return _pictures;
+}
+
+std::vector<uint64_t /* PicNum or LongTermPicNum */> H264SliceDecodingProcess::GetRefPicList0()
+{
+    return _RefPicList0;
+}
+
+std::vector<uint64_t /* PicNum or LongTermPicNum */> H264SliceDecodingProcess::GetRefPicList1()
+{
+    return _RefPicList1;
 }
 
 void H264SliceDecodingProcess::OnDecodingBegin()
@@ -1108,7 +1158,7 @@ void H264SliceDecodingProcess::OnDecodingEnd()
     {
         if (picture->referenceFlag & H264PictureContext::used_for_short_term_reference || picture->referenceFlag & H264PictureContext::used_for_long_term_reference)
         {
-            pictures.insert(picture);
+            pictures.push_back(picture);
         }
     }
     _pictures.swap(pictures);

@@ -376,6 +376,7 @@ H264NalSyntax::H264NalSyntax()
 
 H264PictureContext::H264PictureContext()
 {
+    id = 0;
     TopFieldOrderCnt = INT32_MAX;
     BottomFieldOrderCnt = INT32_MAX;
 }
