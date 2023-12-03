@@ -1096,6 +1096,13 @@ void H264SliceDecodingProcess::SliceDecodingProcess(H264NalSyntax::ptr nal)
                 }
                 picture->FrameNum = nal->slice->frame_num;
             }
+            MPP_H264_SD_LOG("[DP] nal_unit_type(%s-%d) slice_type(%s-%d) frame_num(%ld)", 
+                H264NaluTypeToStr(nal->nal_unit_type).c_str(),
+                nal->nal_unit_type, 
+                H264SliceTypeToStr(nal->slice->slice_type).c_str(), 
+                nal->slice->slice_type, 
+                nal->slice->frame_num
+            );
             OnDecodingBegin();
             DecodingProcessForPictureOrderCount(sps, nal->slice, nal->nal_ref_idc, picture);
             DecodeReferencePictureMarkingProcess(nal->slice, sps, _pictures, picture, nal->nal_ref_idc);

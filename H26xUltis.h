@@ -55,5 +55,10 @@ namespace Codec
                                                                     }
 #endif /* MMP_H26X_DEBUG_MODE */
 
+std::string H264NaluTypeToStr(uint8_t nal_unit_type);
+
+std::string H264SliceTypeToStr(uint8_t slice_type);
+
+
 } // namespace Codec
 } // namespace Mmp
