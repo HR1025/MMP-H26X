@@ -258,10 +258,6 @@ H264DecodedReferencePictureMarkingSyntax::H264DecodedReferencePictureMarkingSynt
     no_output_of_prior_pics_flag = 0;
     long_term_reference_flag = 0;
     adaptive_ref_pic_marking_mode_flag = 0;
-    difference_of_pic_nums_minus1 = 0;
-    long_term_pic_num = 0;
-    long_term_frame_idx = 0;
-    max_long_term_frame_idx_plus1 = 0;
 }
 
 H264SubSpsSyntax::H264SubSpsSyntax()
