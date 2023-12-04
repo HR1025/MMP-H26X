@@ -991,6 +991,9 @@ public:
     std::unordered_map<uint32_t, std::unordered_map<uint32_t, int32_t>> DeltaPocS0;
     std::unordered_map<uint32_t, std::unordered_map<uint32_t, int32_t>> DeltaPocS1;
     std::unordered_map<uint32_t, uint32_t> NumDeltaPocs;
+public:
+    std::unordered_map<uint32_t, uint32_t> PocLsbLt;
+    std::unordered_map<uint32_t, uint8_t>  UsedByCurrPicLt;
 };
 
 } // namespace Codec

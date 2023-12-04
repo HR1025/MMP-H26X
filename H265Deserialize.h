@@ -48,7 +48,7 @@ private: /* sps */
     bool DeserializeSpsSccSyntax(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265SpsSccSyntax::ptr spsScc);
     bool DeserializeVuiSyntax(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265VuiSyntax::ptr vui);
 private: /* slice */
-    bool DeserializeRefPicListsModificationSyntax(H26xBinaryReader::ptr br, H265SliceHeaderSyntax::ptr slice, H265RefPicListsModificationSyntax::ptr rplm);
+    bool DeserializeRefPicListsModificationSyntax(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265PpsSyntax::ptr pps, H265SliceHeaderSyntax::ptr slice, H265RefPicListsModificationSyntax::ptr rplm);
     bool DeserializePredWeightTableSyntax(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265SliceHeaderSyntax::ptr slice, H265PredWeightTableSyntax::ptr pwt);
 private: /* sei */
     bool DeserializeSeiDecodedPictureHash(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265SeiDecodedPictureHashSyntax::ptr dph);
