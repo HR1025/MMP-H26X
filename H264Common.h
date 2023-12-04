@@ -727,10 +727,14 @@ public:
     uint8_t   long_term_reference_flag;
     uint8_t   adaptive_ref_pic_marking_mode_flag;
     std::vector<uint32_t> memory_management_control_operations;
-    uint32_t  difference_of_pic_nums_minus1;
-    uint32_t  long_term_pic_num;
-    uint32_t  long_term_frame_idx;
-    uint32_t  max_long_term_frame_idx_plus1;
+    union memory_management_control_operations_data
+    {
+        uint32_t  difference_of_pic_nums_minus1;
+        uint32_t  long_term_pic_num;
+        uint32_t  long_term_frame_idx;
+        uint32_t  max_long_term_frame_idx_plus1;
+    };
+    std::vector<memory_management_control_operations_data> memory_management_control_operations_datas;
 };
 
 /**
@@ -974,7 +978,7 @@ class H264PictureContext
 public:
     using ptr = std::shared_ptr<H264PictureContext>;
 public:
-    using cache = std::set<H264PictureContext::ptr>;
+    using cache = std::vector<H264PictureContext::ptr>;
 public:
     H264PictureContext();
     ~H264PictureContext() = default;
@@ -983,6 +987,8 @@ public:
     static constexpr uint64_t used_for_short_term_reference = 1 << 0U;
     static constexpr uint64_t used_for_long_term_reference = 1 << 1U;
     static constexpr uint64_t non_existing = 1 << 2U;
+public:
+    uint64_t id;
 public: /* inherit from nal unit */
     uint8_t   field_pic_flag;
     uint8_t   bottom_field_flag;

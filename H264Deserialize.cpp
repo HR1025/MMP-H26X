@@ -853,21 +853,29 @@ bool H264Deserialize::DeserializeDecodedReferencePictureMarkingSyntax(H26xBinary
                         memory_management_control_operation == 3
                     )
                     {
-                        br->UE(drpm->difference_of_pic_nums_minus1);
+                        H264DecodedReferencePictureMarkingSyntax::memory_management_control_operations_data data;
+                        br->UE(data.difference_of_pic_nums_minus1);
+                        drpm->memory_management_control_operations_datas.push_back(data);
                     }
                     if (memory_management_control_operation == 2)
                     {
-                        br->UE(drpm->long_term_pic_num);
+                        H264DecodedReferencePictureMarkingSyntax::memory_management_control_operations_data data;
+                        br->UE(data.long_term_pic_num);
+                        drpm->memory_management_control_operations_datas.push_back(data);
                     }
                     if (memory_management_control_operation == 3 ||
                             memory_management_control_operation == 6
                     )
                     {
-                        br->UE(drpm->long_term_frame_idx);
+                        H264DecodedReferencePictureMarkingSyntax::memory_management_control_operations_data data;
+                        br->UE(data.long_term_frame_idx);
+                        drpm->memory_management_control_operations_datas.push_back(data);
                     }
                     if (memory_management_control_operation == 4)
                     {
-                        br->UE(drpm->max_long_term_frame_idx_plus1);
+                        H264DecodedReferencePictureMarkingSyntax::memory_management_control_operations_data data;
+                        br->UE(data.max_long_term_frame_idx_plus1);
+                        drpm->memory_management_control_operations_datas.push_back(data);
                     }
                     drpm->memory_management_control_operations.push_back(memory_management_control_operation);
                 } while (memory_management_control_operation != 0);
