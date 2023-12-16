@@ -1,6 +1,7 @@
 #include "H264SliceDecodingProcess.h"
 
 #include <deque>
+#include <sstream>
 #include <cassert>
 #include <iostream>
 #include <algorithm>
