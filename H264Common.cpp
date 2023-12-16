@@ -373,8 +373,23 @@ H264NalSyntax::H264NalSyntax()
 H264PictureContext::H264PictureContext()
 {
     id = 0;
+    id = 0;
+    field_pic_flag = 0;
+    bottom_field_flag = 0;
+    pic_order_cnt_lsb = 0;
+    long_term_frame_idx = 0;
     TopFieldOrderCnt = INT32_MAX;
     BottomFieldOrderCnt = INT32_MAX;
+    prevPicOrderCntMsb = 0;
+    FrameNumOffset = 0;
+    MaxFrameNum = 0;
+    FrameNum = 0;
+    FrameNumWrap = 0;
+    PicNum = 0;
+    referenceFlag = 0;
+    MaxLongTermFrameIdx = 0;
+    LongTermFrameIdx = 0;
+    LongTermPicNum = 0;
 }
 
 } // namespace Codec

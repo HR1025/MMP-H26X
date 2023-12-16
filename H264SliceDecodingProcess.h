@@ -30,8 +30,8 @@ public:
 public:
     H264PictureContext::ptr GetCurrentPictureContext();
     H264PictureContext::cache GetAllPictures();
-    std::vector<uint64_t /* PicNum or LongTermPicNum */> GetRefPicList0();
-    std::vector<uint64_t /* PicNum or LongTermPicNum */> GetRefPicList1();
+    std::vector<H264PictureContext::ptr> GetRefPicList0();
+    std::vector<H264PictureContext::ptr> GetRefPicList1();
 private:
     using task = std::function<void()>;
 private:
@@ -45,7 +45,7 @@ private:
 private:
     void DecodingProcessForReferencePictureListsConstruction(H264SliceHeaderSyntax::ptr slice, H264SpsSyntax::ptr sps, H264PictureContext::cache pictures, H264PictureContext::ptr picture);
     void DecodingProcessForPictureNumbers(H264SliceHeaderSyntax::ptr slice, H264SpsSyntax::ptr sps, H264PictureContext::cache pictures, H264PictureContext::ptr picture);
-    void InitializationProcessForReferencePictureLists(H264SliceHeaderSyntax::ptr slice, H264PictureContext::cache pictures);
+    void InitializationProcessForReferencePictureLists(H264SliceHeaderSyntax::ptr slice, H264PictureContext::cache pictures, H264PictureContext::ptr picture);
     void ModificationProcessForReferencePictureLists(H264SliceHeaderSyntax::ptr slice, H264SpsSyntax::ptr sps, H264PictureContext::cache pictures, H264PictureContext::ptr picture);
 private:
     void DecodeReferencePictureMarkingProcess(H264SliceHeaderSyntax::ptr slice, H264SpsSyntax::ptr sps, H264PictureContext::cache pictures, H264PictureContext::ptr picture, uint8_t nal_ref_idc);
@@ -56,8 +56,8 @@ private:
 private:
     H264PictureContext::ptr _prevPicture;
 private:
-    std::vector<uint64_t /* PicNum or LongTermPicNum */> _RefPicList0;
-    std::vector<uint64_t /* PicNum or LongTermPicNum */> _RefPicList1;
+    std::vector<H264PictureContext::ptr> _RefPicList0;
+    std::vector<H264PictureContext::ptr> _RefPicList1;
 private:
     uint64_t _curId;
     H264PictureContext::cache _pictures;
