@@ -242,8 +242,6 @@ H264MvcVuiSyntax::H264MvcVuiSyntax()
 H264ReferencePictureListModificationSyntax::H264ReferencePictureListModificationSyntax()
 {
     ref_pic_list_modification_flag_l0 = 0;
-    abs_diff_pic_num_minus1 = 0;
-    long_term_pic_num = 0;
     ref_pic_list_modification_flag_l1 = 0;
 }
 
