@@ -679,10 +679,14 @@ public:
     ~H264ReferencePictureListModificationSyntax() = default;
 public:
     uint8_t   ref_pic_list_modification_flag_l0;
-    uint32_t  abs_diff_pic_num_minus1;
-    uint32_t  long_term_pic_num;
     uint8_t   ref_pic_list_modification_flag_l1;
     std::vector<uint32_t> modification_of_pic_nums_idcs;
+    union modification_of_pic_nums_idcs_data
+    {
+        uint32_t  abs_diff_pic_num_minus1;
+        uint32_t  long_term_pic_num;
+    };
+    std::vector<modification_of_pic_nums_idcs_data> modification_of_pic_nums_idcs_datas;
 };
 
 /**

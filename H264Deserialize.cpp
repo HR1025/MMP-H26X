@@ -1354,11 +1354,15 @@ bool H264Deserialize::DeserializeReferencePictureListModificationSyntax(H26xBina
                         modification_of_pic_nums_idc == 1
                     )
                     {
-                        br->UE(rplm->abs_diff_pic_num_minus1);
+                        H264ReferencePictureListModificationSyntax::modification_of_pic_nums_idcs_data modification_of_pic_nums_idcs_data;
+                        br->UE(modification_of_pic_nums_idcs_data.abs_diff_pic_num_minus1);
+                        rplm->modification_of_pic_nums_idcs_datas.push_back(modification_of_pic_nums_idcs_data);
                     }
                     else if (modification_of_pic_nums_idc == 2)
                     {
-                        br->UE(rplm->long_term_pic_num);
+                        H264ReferencePictureListModificationSyntax::modification_of_pic_nums_idcs_data modification_of_pic_nums_idcs_data;
+                        br->UE(modification_of_pic_nums_idcs_data.long_term_pic_num);
+                        rplm->modification_of_pic_nums_idcs_datas.push_back(modification_of_pic_nums_idcs_data);
                     }
                     rplm->modification_of_pic_nums_idcs.push_back(modification_of_pic_nums_idc);
                 } while(modification_of_pic_nums_idc != 3);
@@ -1377,11 +1381,15 @@ bool H264Deserialize::DeserializeReferencePictureListModificationSyntax(H26xBina
                         modification_of_pic_nums_idc == 1
                     )
                     {
-                        br->UE(rplm->abs_diff_pic_num_minus1);
+                        H264ReferencePictureListModificationSyntax::modification_of_pic_nums_idcs_data modification_of_pic_nums_idcs_data;
+                        br->UE(modification_of_pic_nums_idcs_data.abs_diff_pic_num_minus1);
+                        rplm->modification_of_pic_nums_idcs_datas.push_back(modification_of_pic_nums_idcs_data);
                     }
                     else if (modification_of_pic_nums_idc == 2)
                     {
-                        br->UE(rplm->long_term_pic_num);
+                        H264ReferencePictureListModificationSyntax::modification_of_pic_nums_idcs_data modification_of_pic_nums_idcs_data;
+                        br->UE(modification_of_pic_nums_idcs_data.long_term_pic_num);
+                        rplm->modification_of_pic_nums_idcs_datas.push_back(modification_of_pic_nums_idcs_data);
                     }
                     rplm->modification_of_pic_nums_idcs.push_back(modification_of_pic_nums_idc);
                 } while(modification_of_pic_nums_idc != 3);

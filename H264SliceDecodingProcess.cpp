@@ -87,6 +87,42 @@ static uint64_t GetPicNumX(H264SliceHeaderSyntax::ptr slice, uint32_t difference
     return picNumX;
 }
 
+static H264PictureContext::ptr FindPictureByPicNum(H264PictureContext::cache pictures, uint64_t PicNum)
+{
+    H264PictureContext::ptr picture = nullptr;
+    for (auto _picture : pictures)
+    {
+        if (_picture->referenceFlag & H264PictureContext::used_for_short_term_reference)
+        {
+            if (PicNum == _picture->PicNum)
+            {
+                picture = _picture;
+                break;
+            }
+        }
+    }
+    assert(picture);
+    return picture;
+}
+
+static H264PictureContext::ptr FindPictureByLongTermPicNum(H264PictureContext::cache pictures, uint64_t LongTermPicNum)
+{
+    H264PictureContext::ptr picture = nullptr;
+    for (auto _picture : pictures)
+    {
+        if (_picture->referenceFlag & H264PictureContext::used_for_long_term_reference)
+        {
+            if (LongTermPicNum == _picture->LongTermPicNum)
+            {
+                picture = _picture;
+                break;
+            }
+        }
+    }
+    assert(picture);
+    return picture;
+}
+
 static void UnMarkUsedForShortTermReference(H264PictureContext::cache pictures, uint64_t picNumX)
 {
     for (auto _picture : pictures)
@@ -784,8 +820,8 @@ void H264SliceDecodingProcess::InitializationProcessForReferencePictureLists(H26
         assert(false);
     }
     {
-        _RefPicList0.resize(std::min((size_t)slice->num_ref_idx_l0_active_minus1 + 1, _RefPicList0.size()));
-        _RefPicList1.resize(std::min((size_t)slice->num_ref_idx_l1_active_minus1 + 1, _RefPicList1.size()));
+        _RefPicList0.resize(slice->num_ref_idx_l0_active_minus1 + 1);
+        _RefPicList1.resize(slice->num_ref_idx_l1_active_minus1 + 1);
     }
 #ifdef ENABLE_MMP_SD_DEBUG
     static auto refTypeToStr = [](uint32_t referenceFlag) -> std::string
@@ -806,8 +842,8 @@ void H264SliceDecodingProcess::InitializationProcessForReferencePictureLists(H26
     };
     {
         std::stringstream ss;
-        ss << "[IPRC] RefPicList0[" << _RefPicList0.size() << "]" << std::endl;
-        for (size_t i=0; i<_RefPicList0.size(); i++)
+        ss << std::endl << "[IPRC] RefPicList0[" << _RefPicList0.size() << "]" << std::endl;
+        for (size_t i=0; i<_RefPicList0.size() && _RefPicList0[i]; i++)
         {
             ss << "-- (" << i << ") Type(" << refTypeToStr(_RefPicList0[i]->referenceFlag) <<  ") "
                << "FrameNum(" << _RefPicList0[i]->FrameNum << ")";
@@ -829,8 +865,8 @@ void H264SliceDecodingProcess::InitializationProcessForReferencePictureLists(H26
     }
     {
         std::stringstream ss;
-        ss << "[IPRC] RefPicList1[" << _RefPicList1.size() << "]" << std::endl;
-        for (size_t i=0; i<_RefPicList1.size(); i++)
+        ss << std::endl << "[IPRC] RefPicList1[" << _RefPicList1.size() << "]" << std::endl;
+        for (size_t i=0; i<_RefPicList1.size() && _RefPicList1[i]; i++)
         {
             ss << "-- (" << i << ") Type(" << refTypeToStr(_RefPicList1[i]->referenceFlag) <<  ") "
                << "FrameNum(" << _RefPicList1[i]->FrameNum << ")";
@@ -861,7 +897,11 @@ void H264SliceDecodingProcess::ModificationProcessForReferencePictureLists(H264S
     uint64_t MaxPicNum = 0;
     uint64_t CurrPicNum = 0;
     uint64_t picNumLX = 0;
+    size_t index = 0;
     // determine CurrPicNum
+    // The variable CurrPicNum is derived as follows:
+    // - If field_pic_flag is equal to 0, CurrPicNum is set equal to frame_num.
+    // - Otherwise (field_pic_flag is equal to 1), CurrPicNum is set equal to 2 * frame_num + 1.
     {
         if (slice->field_pic_flag == 0)
         {
@@ -873,8 +913,11 @@ void H264SliceDecodingProcess::ModificationProcessForReferencePictureLists(H264S
         }
     }
     // determine MaxPicNum
+    // The variable MaxPicNum is derived as follows:
+    // - If field_pic_flag is equal to 0, MaxPicNum is set equal to MaxFrameNum.
+    // - Otherwise (field_pic_flag is equal to 1), MaxPicNum is set equal to 2*MaxFrameNum.
     {
-        uint64_t MaxFrameNum = 1 << (sps->log2_max_frame_num_minus4 + 4);
+        uint64_t MaxFrameNum = 1 << (sps->log2_max_frame_num_minus4 + 4); // (7-10)
         if (slice->field_pic_flag == 0)
         {
             MaxPicNum = MaxFrameNum;
@@ -885,42 +928,55 @@ void H264SliceDecodingProcess::ModificationProcessForReferencePictureLists(H264S
         }
     }
 
-    auto modificationProcessForReferencePictureLists = [&](uint32_t refIdxLX, std::vector<H264PictureContext::ptr>& RefPicListX, uint32_t num_ref_idx_lX_active_minus1)
+    auto modificationProcessForReferencePictureLists = [&](uint32_t& refIdxLX, std::vector<H264PictureContext::ptr>& RefPicListX, uint32_t num_ref_idx_lX_active_minus1)
     {
+        int64_t picNumLXPred = 0;
+        bool initPicNumLXPred = false;
         for (const auto& modification_of_pic_nums_idc : slice->rplm->modification_of_pic_nums_idcs)
         {
+            MPP_H264_SD_LOG("[MRPL] modification_of_pic_nums_idc(%d)", modification_of_pic_nums_idc);
             // 8.2.4.3.1 Modification process of reference picture lists for short-term reference pictures
             if (modification_of_pic_nums_idc == 0 || modification_of_pic_nums_idc == 1)
             {
-                uint64_t picNumLXNoWrap = CurrPicNum;
-                uint64_t picNumLXPred = picNumLXNoWrap;
+                // Hint :
+                //   When the process specified in this subclause
+                // is invoked the first time for a slice (that is, for the first occurrence of modification_of_pic_nums_idc equal to 0 or 1 in the
+                // ref_pic_list_modification( ) syntax), picNumL0Pred and picNumL1Pred are initially set equal to CurrPicNum.
+                if (initPicNumLXPred == false)
+                {
+                    picNumLXPred = CurrPicNum;
+                    initPicNumLXPred = true;
+                }
+                uint64_t picNumLXNoWrap = 0;
+                uint32_t abs_diff_pic_num_minus1 = slice->rplm->modification_of_pic_nums_idcs_datas[index++].abs_diff_pic_num_minus1;
                 // determine picNumLXNoWrap
                 {
                     if (modification_of_pic_nums_idc == 0) // (8-34)
                     {
-                        if (picNumLXNoWrap - (slice->rplm->abs_diff_pic_num_minus1 + 1) < 0)
+                        if (picNumLXPred - (abs_diff_pic_num_minus1 + 1) < 0)
                         {
-                            picNumLXNoWrap = picNumLXPred - (slice->rplm->abs_diff_pic_num_minus1 + 1) + MaxPicNum;
+                            picNumLXNoWrap = picNumLXPred - (abs_diff_pic_num_minus1 + 1) + MaxPicNum;
                         }
                         else
                         {
-                            picNumLXNoWrap = picNumLXPred - (slice->rplm->abs_diff_pic_num_minus1 + 1);
+                            picNumLXNoWrap = picNumLXPred - (abs_diff_pic_num_minus1 + 1);
                         }
                     }
                     else if (modification_of_pic_nums_idc == 1) // (8-35)
                     {
-                        if (picNumLXPred + (slice->rplm->abs_diff_pic_num_minus1 + 1) >= MaxPicNum)
+                        if (picNumLXPred + (abs_diff_pic_num_minus1 + 1) >= MaxPicNum)
                         {
-                            picNumLXNoWrap = picNumLXPred + (slice->rplm->abs_diff_pic_num_minus1 + 1) - MaxPicNum;
+                            picNumLXNoWrap = picNumLXPred + (abs_diff_pic_num_minus1 + 1) - MaxPicNum;
                         }
                         else
                         {
-                            picNumLXNoWrap = picNumLXPred + (slice->rplm->abs_diff_pic_num_minus1 + 1);
+                            picNumLXNoWrap = picNumLXPred + (abs_diff_pic_num_minus1 + 1);
                         }
                     }
                 }
-                picNumLXNoWrap = picNumLXPred;
-                // determine picNumLX
+                // Hint : After each assignment of picNumLXNoWrap, the value of picNumLXNoWrap is assigned to picNumLXPred.
+                picNumLXPred = picNumLXNoWrap;
+                // determine picNumLX (8-36)
                 {
                     if (picNumLXNoWrap > CurrPicNum)
                     {
@@ -933,38 +989,51 @@ void H264SliceDecodingProcess::ModificationProcessForReferencePictureLists(H264S
                 }
                 // (8-37)
                 {
-                    auto PicNumF = [pictures, MaxPicNum](uint32_t cIdx) -> uint32_t
+                    auto PicNumF = [MaxPicNum](H264PictureContext::ptr picture) -> uint32_t
                     {
-                        for (auto _picture : pictures)
+                        // Hint :
+                        // The function PicNumF( RefPicListX[ cIdx ] ) is derived as follows:
+                        // - If the picture RefPicListX[ cIdx ] is marked as "used for short-term reference", PicNumF( RefPicListX[ cIdx ] ) is
+                        //   the PicNum of the picture RefPicListX[ cIdx ].
+                        // - Otherwise (the picture RefPicListX[ cIdx ] is not marked as "used for short-term reference"),
+                        //   PicNumF( RefPicListX[ cIdx ] ) is equal to MaxPicNum.
+                        if (picture && picture->referenceFlag & H264PictureContext::used_for_short_term_reference)
                         {
-                            if (_picture->PicNum == cIdx)
-                            {
-                                if (_picture->referenceFlag & H264PictureContext::used_for_short_term_reference)
-                                {
-                                    return cIdx;
-                                }
-                            }
+                            return picture->PicNum;
                         }
-                        return MaxPicNum;
+                        else
+                        {
+                            return MaxPicNum;
+                        }
                     };
+                    // Hint : the length of the list RefPicListX is temporarily made one element longer than the length needed for the final list
+                    RefPicListX.resize((num_ref_idx_lX_active_minus1+1)+1);
                     for (uint32_t cIdx = num_ref_idx_lX_active_minus1+1; cIdx > refIdxLX; cIdx--)
                     {
                         RefPicListX[cIdx] = RefPicListX[cIdx-1];
                     }
-                    RefPicListX[refIdxLX++]->PicNum = picNumLX;
+                    MPP_H264_SD_LOG("[MRPL] refIdxLX(%d) abs_diff_pic_num_minus1(%d) picNumLX(%ld)", refIdxLX, abs_diff_pic_num_minus1, picNumLX);
+                    RefPicListX[refIdxLX++] = FindPictureByPicNum(pictures, picNumLX); // short-term reference picture with PicNum equal to picNumLX
                     uint32_t nIdx = refIdxLX;
                     for (uint32_t cIdx = refIdxLX; cIdx <= num_ref_idx_lX_active_minus1+1; cIdx++)
                     {
-                        if (PicNumF(RefPicListX[cIdx]->PicNum) != picNumLX)
+                        if (PicNumF(RefPicListX[cIdx]) != picNumLX)
                         {
                             RefPicListX[nIdx++] = RefPicListX[cIdx];
                         }
                     }
+                    for (; nIdx <= num_ref_idx_lX_active_minus1+1; nIdx++)
+                    {
+                        RefPicListX[nIdx++] = nullptr;
+                    }
+                    // Hint :  After the execution of this procedure, only elements 0 through num_ref_idx_lX_active_minus1 of the list need to be retained.
+                    RefPicListX.resize(num_ref_idx_lX_active_minus1+1);
                 }
             }
             // 8.2.4.3.2 Modification process of reference picture lists for long-term reference pictures
             else if (modification_of_pic_nums_idc == 2)
             {
+                uint32_t long_term_pic_num = slice->rplm->modification_of_pic_nums_idcs_datas[index++].long_term_pic_num;
                 auto LongTermPicNumF = [pictures, MaxPicNum, picture](uint32_t cIdx) -> uint32_t
                 {
                     for (auto _picture : pictures)
@@ -979,20 +1048,28 @@ void H264SliceDecodingProcess::ModificationProcessForReferencePictureLists(H264S
                     }
                     return 2 * (picture->MaxLongTermFrameIdx + 1);
                 };
-
+                // Hint : the length of the list RefPicListX is temporarily made one element longer than the length needed for the final list
+                RefPicListX.resize((num_ref_idx_lX_active_minus1+1)+1);
                 for (uint32_t cIdx = num_ref_idx_lX_active_minus1 + 1; cIdx > refIdxLX; cIdx--)
                 {
                     RefPicListX[cIdx] = RefPicListX[cIdx - 1];
                 }
-                RefPicListX[refIdxLX++]->LongTermPicNum = slice->rplm->long_term_pic_num;
+                MPP_H264_SD_LOG("[MRPL] refIdxLX(%d) long_term_pic_num(%d) LongTermPicNum(%d)", refIdxLX, long_term_pic_num, long_term_pic_num);
+                RefPicListX[refIdxLX++] = FindPictureByLongTermPicNum(pictures, long_term_pic_num);
                 uint32_t nIdx = refIdxLX;
                 for (uint32_t cIdx = refIdxLX; cIdx <= num_ref_idx_lX_active_minus1 + 1; cIdx++)
                 {
-                    if (LongTermPicNumF(RefPicListX[cIdx]->LongTermPicNum) != slice->rplm->long_term_pic_num)
+                    if (LongTermPicNumF(RefPicListX[cIdx]->LongTermPicNum) != long_term_pic_num)
                     {
                         RefPicListX[nIdx++] = RefPicListX[cIdx];
                     }
                 }
+                for (; nIdx <= num_ref_idx_lX_active_minus1+1; nIdx++)
+                {
+                    RefPicListX[nIdx++] = nullptr;
+                }
+                // Hint :  After the execution of this procedure, only elements 0 through num_ref_idx_lX_active_minus1 of the list need to be retained.
+                RefPicListX.resize(num_ref_idx_lX_active_minus1+1);
             }
             else if (modification_of_pic_nums_idc == 3)
             {
@@ -1011,6 +1088,70 @@ void H264SliceDecodingProcess::ModificationProcessForReferencePictureLists(H264S
         uint32_t refIdxL1 = 0;
         modificationProcessForReferencePictureLists(refIdxL1, _RefPicList1, slice->num_ref_idx_l1_active_minus1);
     }
+#ifdef ENABLE_MMP_SD_DEBUG
+    static auto refTypeToStr = [](uint32_t referenceFlag) -> std::string
+    {
+        if (referenceFlag & H264PictureContext::used_for_short_term_reference)
+        {
+            return "ST";
+        }
+        else if (referenceFlag & H264PictureContext::used_for_long_term_reference)
+        {
+            return "LT";
+        }
+        else
+        {
+            assert(false);
+            return "?";
+        }
+    };
+    {
+        std::stringstream ss;
+        ss << std::endl << "[MRPL] RefPicList0[" << _RefPicList0.size() << "]" << std::endl;
+        for (size_t i=0; i<_RefPicList0.size() && _RefPicList0[i]; i++)
+        {
+            ss << "-- (" << i << ") Type(" << refTypeToStr(_RefPicList0[i]->referenceFlag) <<  ") "
+               << "FrameNum(" << _RefPicList0[i]->FrameNum << ")";
+            if (_RefPicList0[i]->referenceFlag & H264PictureContext::used_for_short_term_reference)
+            {
+                ss << " PicOrderCnt(" << PicOrderCnt(_RefPicList0[i]) << ")";
+            }
+            else if (_RefPicList0[i]->referenceFlag & H264PictureContext::used_for_long_term_reference)
+            {
+                ss << " LongTermPicNum(" << _RefPicList0[i]->LongTermPicNum << ")";
+            }
+            if (i + 1 != _RefPicList0.size())
+            {
+                ss << std::endl;
+            }
+        }
+        std::string log = ss.str();
+        MPP_H264_SD_LOG("%s", log.c_str());
+    }
+    {
+        std::stringstream ss;
+        ss << std::endl << "[MRPL] RefPicList1[" << _RefPicList1.size() << "]" << std::endl;
+        for (size_t i=0; i<_RefPicList1.size() && _RefPicList1[i]; i++)
+        {
+            ss << "-- (" << i << ") Type(" << refTypeToStr(_RefPicList1[i]->referenceFlag) <<  ") "
+               << "FrameNum(" << _RefPicList1[i]->FrameNum << ")";
+            if (_RefPicList0[i]->referenceFlag & H264PictureContext::used_for_short_term_reference)
+            {
+                ss << " PicOrderCnt(" << PicOrderCnt(_RefPicList0[i]) << ")";
+            }
+            else if (_RefPicList0[i]->referenceFlag & H264PictureContext::used_for_long_term_reference)
+            {
+                ss << " LongTermPicNum(" << _RefPicList0[i]->LongTermPicNum << ")";
+            }
+            if (i + 1 != _RefPicList1.size())
+            {
+                ss << std::endl;
+            }
+        }
+        std::string log = ss.str();
+        MPP_H264_SD_LOG("%s", log.c_str());
+    }
+#endif /* ENABLE_MMP_SD_DEBUG */
 }
 
 /*************************************** 8.2.4 Decoding process for reference picture lists construction(End) ******************************************/
