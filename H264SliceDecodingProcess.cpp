@@ -1,11 +1,16 @@
 #include "H264SliceDecodingProcess.h"
 
+#include <deque>
+#include <sstream>
 #include <cassert>
 #include <iostream>
 #include <algorithm>
 
 #include "H26xUltis.h"
 
+/**
+ * @todo 优化某些查询方式 
+ */
 namespace Mmp
 {
 namespace Codec
@@ -35,22 +40,22 @@ static bool PictureIsSecondField(H264PictureContext::ptr picture)
 static H264PictureContext::ptr /* complementary picture */ FindComplementaryPicture(H264PictureContext::cache pictures, H264PictureContext::ptr picture)
 {
     H264PictureContext::ptr compPicture = nullptr;
-    if (PictureIsSecondField(picture)) // second filed
+    if (PictureIsSecondField(picture)) // second field
     {
         for (auto& _picture : pictures)
         {
-            if (_picture->PicNum /* second field */ == picture->PicNum - 1 /* first filed */)
+            if (_picture->PicNum /* second field */ == picture->PicNum - 1 /* first field */)
             {
                 compPicture = _picture;
                 break;
             }
         }
     }
-    else if (picture->bottom_field_flag == 0 /* && picture->bottom_field_flag == 1 */) // first filed
+    else if (picture->bottom_field_flag == 0 /* && picture->bottom_field_flag == 1 */) // first field
     {
         for (auto& _picture : pictures)
         {
-            if (_picture->PicNum /* first filed */ == picture->PicNum + 1 /* second field */)
+            if (_picture->PicNum /* first field */ == picture->PicNum + 1 /* second field */)
             {
                 compPicture = _picture;
                 break;
@@ -106,6 +111,7 @@ static void UnMarkUsedForShortTermReference(H264PictureContext::cache pictures, 
                     compPicture->referenceFlag = compPicture->referenceFlag ^ H264PictureContext::used_for_short_term_reference;
                 }
             }
+            MPP_H264_SD_LOG("[RF] UnMarkUsedForShortTermReference, PicNum(%d) FrameNum(%d)", _picture->PicNum, _picture->FrameNum);
         }
     }
 }
@@ -172,8 +178,6 @@ static void MarkShortTermReferenceToLongTermReference(H264PictureContext::cache 
     }
 }
 
-/*************************************** 8.2.1 Decoding process for picture order count(Begin) ******************************************/
-
 static int32_t PicOrderCnt(H264PictureContext::ptr picX) // (8-1)
 {
     if (picX->field_pic_flag == 0)
@@ -200,6 +204,7 @@ static int32_t DiffPicOrderCnt(H264PictureContext::ptr picA, H264PictureContext:
     return PicOrderCnt(picA) - PicOrderCnt(picB);
 }
 
+/*************************************** 8.2.1 Decoding process for picture order count(Begin) ******************************************/
 /**
  * @sa  ISO 14496/10(2020) - 8.2.1 Decoding process for picture order count
  */
@@ -223,12 +228,6 @@ void H264SliceDecodingProcess::DecodingProcessForPictureOrderCount(H264SpsSyntax
     {
         DecodeH264PictureOrderCountType2(_prevPicture, sps,  slice, nal_ref_idc, picture);
     }
-
-    MPP_H264_SD_LOG("[POC] pic_order_cnt_type is(%d) TopFieldOrderCnt(%d) BottomFieldOrderCnt(%d)",
-            sps->pic_order_cnt_type,
-            picture->TopFieldOrderCnt,
-            picture->BottomFieldOrderCnt
-        )
 
     // Hint :
     //        When the current picture includes a
@@ -516,7 +515,7 @@ void H264SliceDecodingProcess::DecodeH264PictureOrderCountType2(H264PictureConte
 void H264SliceDecodingProcess::DecodingProcessForReferencePictureListsConstruction(H264SliceHeaderSyntax::ptr slice, H264SpsSyntax::ptr sps, H264PictureContext::cache pictures, H264PictureContext::ptr picture)
 {
     DecodingProcessForPictureNumbers(slice, sps, pictures, picture);
-    InitializationProcessForReferencePictureLists(slice, pictures);
+    InitializationProcessForReferencePictureLists(slice, pictures, picture);
     if (slice->rplm->ref_pic_list_modification_flag_l0 || 
         (slice->rplm->ref_pic_list_modification_flag_l1 && slice->slice_type == H264SliceType::MMP_H264_B_SLICE)
     )
@@ -600,7 +599,7 @@ void H264SliceDecodingProcess::DecodingProcessForPictureNumbers(H264SliceHeaderS
 /**
  * @sa  ISO 14496/10(2020) - 8.2.4.2 Initialization process for reference picture lists
  */
-void H264SliceDecodingProcess::InitializationProcessForReferencePictureLists(H264SliceHeaderSyntax::ptr slice, H264PictureContext::cache pictures)
+void H264SliceDecodingProcess::InitializationProcessForReferencePictureLists(H264SliceHeaderSyntax::ptr slice, H264PictureContext::cache pictures, H264PictureContext::ptr picture)
 {
     {
         _RefPicList0.clear();
@@ -609,51 +608,249 @@ void H264SliceDecodingProcess::InitializationProcessForReferencePictureLists(H26
     // 8.2.4.2.1 Initialization process for the reference picture list for P and SP slices in frames
     if ((slice->slice_type == H264SliceType::MMP_H264_P_SLICE || slice->slice_type == H264SliceType::MMP_H264_SP_SLICE) && slice->field_pic_flag == 0)
     {
-        std::vector<uint64_t> shortTermRefPicList; // the highest PicNum value in descending order
-        std::vector<uint64_t> longTermRefList;     // the lowest LongTermPicNum value in ascending order
+        std::vector<H264PictureContext::ptr> shortTermRefPicList; // the highest PicNum value in descending order
+        std::vector<H264PictureContext::ptr> longTermRefList;     // the lowest LongTermPicNum value in ascending order
         for (auto picture : pictures)
         {
             if (picture->referenceFlag & H264PictureContext::used_for_short_term_reference)
             {
-                shortTermRefPicList.push_back(picture->PicNum);
+                shortTermRefPicList.push_back(picture);
             }
             if (picture->referenceFlag & H264PictureContext::used_for_long_term_reference)
             {
-                longTermRefList.push_back(picture->LongTermPicNum);
+                longTermRefList.push_back(picture);
             }
-            std::sort(shortTermRefPicList.begin(), shortTermRefPicList.end());
-            std::reverse(shortTermRefPicList.begin(), shortTermRefPicList.end());
-            std::sort(longTermRefList.begin(), longTermRefList.end());
-            for (auto& PicNum : shortTermRefPicList)
-            {
-                _RefPicList0.push_back(PicNum);
-            }
-            for (auto& LongTermPicNum : longTermRefList)
-            {
-                _RefPicList0.push_back(LongTermPicNum);
-            }
+        }
+        std::sort(shortTermRefPicList.begin(), shortTermRefPicList.end(), [](const H264PictureContext::ptr& left, const H264PictureContext::ptr& right) -> bool
+        {
+            return left->PicNum < right->PicNum;
+        });
+        std::sort(longTermRefList.begin(), longTermRefList.end(), [](const H264PictureContext::ptr& left, const H264PictureContext::ptr& right) -> bool
+        {
+            return left->LongTermPicNum > right->LongTermPicNum;
+        });
+        for (auto& shortTermPicture : shortTermRefPicList)
+        {
+            _RefPicList0.push_back(shortTermPicture);
+        }
+        for (auto& longTermPicture : longTermRefList)
+        {
+            _RefPicList0.push_back(longTermPicture);
         }
     }
     // 8.2.4.2.2 Initialization process for the reference picture list for P and SP slices in fields
     else if ((slice->slice_type == H264SliceType::MMP_H264_P_SLICE || slice->slice_type == H264SliceType::MMP_H264_SP_SLICE) && slice->field_pic_flag == 1)
     {
-        // Hint : not support filed for now
+        // Hint : not support field for now
         assert(false);
     }
+    // 8.2.4.2.3 Initialization process for reference picture lists for B slices in frames
     else if ((slice->slice_type == H264SliceType::MMP_H264_B_SLICE) && slice->field_pic_flag == 0)
     {
-        // Hint : not support for now
+        int32_t curPoc = PicOrderCnt(picture);
+        {
+            std::deque<H264PictureContext::ptr>  RefPicList01;    // short term : PicOrderCnt( entryShortTerm ) less than PicOrderCnt( CurrPic ) in descending order
+            std::vector<H264PictureContext::ptr> RefPicList02;    // short term :  others in ascending order
+            std::vector<H264PictureContext::ptr> RefPicList03;    // long term  :  the lowest LongTermPicNum value in ascending order
+            {
+                H264PictureContext::ptr minPicture = nullptr;
+                for (auto __picture : _pictures)
+                {
+                    if (__picture->referenceFlag & H264PictureContext::used_for_short_term_reference)
+                    {
+                        int32_t picPoc = PicOrderCnt(__picture);
+                        if (picPoc < curPoc)
+                        {
+                            RefPicList01.push_back(__picture);
+                        }
+                    }
+                }
+                std::sort(RefPicList01.begin(), RefPicList01.end(), [](const H264PictureContext::ptr& left, const H264PictureContext::ptr& right)->bool
+                {
+                    return PicOrderCnt(left) < PicOrderCnt(right);
+                });
+            }
+            {
+                for (auto __picture : _pictures)
+                {
+                    if (__picture->referenceFlag & H264PictureContext::used_for_short_term_reference)
+                    {
+                        int32_t picPoc = PicOrderCnt(__picture);
+                        if (picPoc > curPoc)
+                        {
+                            RefPicList02.push_back(__picture);
+                        }
+                    }
+                }
+                std::sort(RefPicList02.begin(), RefPicList02.end(), [](const H264PictureContext::ptr& left, const H264PictureContext::ptr& right)->bool
+                {
+                    return PicOrderCnt(left) > PicOrderCnt(right);
+                });
+            }
+            {
+                for (auto picture : pictures)
+                {
+                    if (picture->referenceFlag & H264PictureContext::used_for_long_term_reference)
+                    {
+                        RefPicList03.push_back(picture);
+                    }
+                }
+                std::sort(RefPicList03.begin(), RefPicList03.end(), [](const H264PictureContext::ptr& left, const H264PictureContext::ptr& right) -> bool
+                {
+                    return left->LongTermPicNum > right->LongTermPicNum;
+                });
+            }
+            for (const auto& RefPic : RefPicList01)
+            {
+                _RefPicList0.push_back(RefPic);
+            }
+            for (const auto& RefPic : RefPicList02)
+            {
+                _RefPicList0.push_back(RefPic);
+            }
+            for (const auto& RefPic : RefPicList03)
+            {
+                _RefPicList0.push_back(RefPic);
+            }
+        }
+        {
+            std::vector<H264PictureContext::ptr> RefPicList11;    // short term : PicOrderCnt( entryShortTerm ) greater than PicOrderCnt( CurrPic ) in descending order
+            std::vector<H264PictureContext::ptr> RefPicList12;    // short term :  others in ascending order
+            std::vector<H264PictureContext::ptr> RefPicList13;    // long term  :  the lowest LongTermPicNum value in ascending order
+            {
+                for (auto __picture : _pictures)
+                {
+                    if (__picture->referenceFlag & H264PictureContext::used_for_short_term_reference)
+                    {
+                        int32_t picPoc = PicOrderCnt(__picture);
+                        if (picPoc > curPoc)
+                        {
+                            RefPicList11.push_back(__picture);
+                        }
+                    }
+                }
+                std::sort(RefPicList11.begin(), RefPicList11.end(), [](const H264PictureContext::ptr& left, const H264PictureContext::ptr& right)->bool
+                {
+                    return PicOrderCnt(left) < PicOrderCnt(right);
+                });
+            }
+            {
+                for (auto __picture : _pictures)
+                {
+                    if (__picture->referenceFlag & H264PictureContext::used_for_short_term_reference)
+                    {
+                        int32_t picPoc = PicOrderCnt(__picture);
+                        if (picPoc < curPoc)
+                        {
+                            RefPicList12.push_back(__picture);
+                        }
+                    }
+                }
+                std::sort(RefPicList12.begin(), RefPicList12.end(), [](const H264PictureContext::ptr& left, const H264PictureContext::ptr& right)->bool
+                {
+                    return PicOrderCnt(left) > PicOrderCnt(right);
+                });
+            }
+            {
+                for (auto picture : pictures)
+                {
+                    if (picture->referenceFlag & H264PictureContext::used_for_long_term_reference)
+                    {
+                        RefPicList13.push_back(picture);
+                    }
+                }
+                std::sort(RefPicList13.begin(), RefPicList13.end(), [](const H264PictureContext::ptr& left, const H264PictureContext::ptr& right) -> bool
+                {
+                    return left->LongTermPicNum > right->LongTermPicNum;
+                });
+            }
+            for (const auto& RefPic : RefPicList11)
+            {
+                _RefPicList1.push_back(RefPic);
+            }
+            for (const auto& RefPic : RefPicList12)
+            {
+                _RefPicList1.push_back(RefPic);
+            }
+            for (const auto& RefPic : RefPicList13)
+            {
+                _RefPicList1.push_back(RefPic);
+            }
+        }
     }
     else if ((slice->slice_type == H264SliceType::MMP_H264_B_SLICE) && slice->field_pic_flag == 1)
     {
         // Hint : not support for now
         assert(false);
     }
-    // TODO
     {
-        _RefPicList0.resize(std::min((size_t)slice-> num_ref_idx_l0_active_minus1 + 1, _RefPicList0.size()));
-        _RefPicList1.resize(std::min((size_t)slice-> num_ref_idx_l1_active_minus1 + 1, _RefPicList1.size()));
+        _RefPicList0.resize(std::min((size_t)slice->num_ref_idx_l0_active_minus1 + 1, _RefPicList0.size()));
+        _RefPicList1.resize(std::min((size_t)slice->num_ref_idx_l1_active_minus1 + 1, _RefPicList1.size()));
     }
+#ifdef ENABLE_MMP_SD_DEBUG
+    static auto refTypeToStr = [](uint32_t referenceFlag) -> std::string
+    {
+        if (referenceFlag & H264PictureContext::used_for_short_term_reference)
+        {
+            return "ST";
+        }
+        else if (referenceFlag & H264PictureContext::used_for_long_term_reference)
+        {
+            return "LT";
+        }
+        else
+        {
+            assert(false);
+            return "?";
+        }
+    };
+    {
+        std::stringstream ss;
+        ss << "[IPRC] RefPicList0[" << _RefPicList0.size() << "]" << std::endl;
+        for (size_t i=0; i<_RefPicList0.size(); i++)
+        {
+            ss << "-- (" << i << ") Type(" << refTypeToStr(_RefPicList0[i]->referenceFlag) <<  ") "
+               << "FrameNum(" << _RefPicList0[i]->FrameNum << ")";
+            if (_RefPicList0[i]->referenceFlag & H264PictureContext::used_for_short_term_reference)
+            {
+                ss << " PicOrderCnt(" << PicOrderCnt(_RefPicList0[i]) << ")";
+            }
+            else if (_RefPicList0[i]->referenceFlag & H264PictureContext::used_for_long_term_reference)
+            {
+                ss << " LongTermPicNum(" << _RefPicList0[i]->LongTermPicNum << ")";
+            }
+            if (i + 1 != _RefPicList0.size())
+            {
+                ss << std::endl;
+            }
+        }
+        std::string log = ss.str();
+        MPP_H264_SD_LOG("%s", log.c_str());
+    }
+    {
+        std::stringstream ss;
+        ss << "[IPRC] RefPicList1[" << _RefPicList1.size() << "]" << std::endl;
+        for (size_t i=0; i<_RefPicList1.size(); i++)
+        {
+            ss << "-- (" << i << ") Type(" << refTypeToStr(_RefPicList1[i]->referenceFlag) <<  ") "
+               << "FrameNum(" << _RefPicList1[i]->FrameNum << ")";
+            if (_RefPicList0[i]->referenceFlag & H264PictureContext::used_for_short_term_reference)
+            {
+                ss << " PicOrderCnt(" << PicOrderCnt(_RefPicList0[i]) << ")";
+            }
+            else if (_RefPicList0[i]->referenceFlag & H264PictureContext::used_for_long_term_reference)
+            {
+                ss << " LongTermPicNum(" << _RefPicList0[i]->LongTermPicNum << ")";
+            }
+            if (i + 1 != _RefPicList1.size())
+            {
+                ss << std::endl;
+            }
+        }
+        std::string log = ss.str();
+        MPP_H264_SD_LOG("%s", log.c_str());
+    }
+#endif /* ENABLE_MMP_SD_DEBUG */
 }
 
 /**
@@ -688,7 +885,7 @@ void H264SliceDecodingProcess::ModificationProcessForReferencePictureLists(H264S
         }
     }
 
-    auto modificationProcessForReferencePictureLists = [&](uint32_t refIdxLX, std::vector<uint64_t>& RefPicListX, uint32_t num_ref_idx_lX_active_minus1)
+    auto modificationProcessForReferencePictureLists = [&](uint32_t refIdxLX, std::vector<H264PictureContext::ptr>& RefPicListX, uint32_t num_ref_idx_lX_active_minus1)
     {
         for (const auto& modification_of_pic_nums_idc : slice->rplm->modification_of_pic_nums_idcs)
         {
@@ -754,11 +951,11 @@ void H264SliceDecodingProcess::ModificationProcessForReferencePictureLists(H264S
                     {
                         RefPicListX[cIdx] = RefPicListX[cIdx-1];
                     }
-                    RefPicListX[refIdxLX++] = picNumLX;
+                    RefPicListX[refIdxLX++]->PicNum = picNumLX;
                     uint32_t nIdx = refIdxLX;
                     for (uint32_t cIdx = refIdxLX; cIdx <= num_ref_idx_lX_active_minus1+1; cIdx++)
                     {
-                        if (PicNumF(RefPicListX[cIdx]) != picNumLX)
+                        if (PicNumF(RefPicListX[cIdx]->PicNum) != picNumLX)
                         {
                             RefPicListX[nIdx++] = RefPicListX[cIdx];
                         }
@@ -787,11 +984,11 @@ void H264SliceDecodingProcess::ModificationProcessForReferencePictureLists(H264S
                 {
                     RefPicListX[cIdx] = RefPicListX[cIdx - 1];
                 }
-                RefPicListX[refIdxLX++] = slice->rplm->long_term_pic_num;
+                RefPicListX[refIdxLX++]->LongTermPicNum = slice->rplm->long_term_pic_num;
                 uint32_t nIdx = refIdxLX;
                 for (uint32_t cIdx = refIdxLX; cIdx <= num_ref_idx_lX_active_minus1 + 1; cIdx++)
                 {
-                    if (LongTermPicNumF(RefPicListX[cIdx]) != slice->rplm->long_term_pic_num)
+                    if (LongTermPicNumF(RefPicListX[cIdx]->LongTermPicNum) != slice->rplm->long_term_pic_num)
                     {
                         RefPicListX[nIdx++] = RefPicListX[cIdx];
                     }
@@ -832,10 +1029,6 @@ void H264SliceDecodingProcess::DecodeReferencePictureMarkingProcess(H264SliceHea
     {
         return;
     }
-    if (slice->slice_type != H264SliceType::MMP_H264_I_SLICE)
-    {
-        DecodingProcessForPictureNumbers(slice, sps, pictures, picture);
-    }
     SequenceOfOperationsForDecodedReferencePictureMarkingProcess(slice, sps, pictures, picture);
 }
 
@@ -861,11 +1054,12 @@ void H264SliceDecodingProcess::SequenceOfOperationsForDecodedReferencePictureMar
     }
     else
     {
-        if (slice->drpm->adaptive_ref_pic_marking_mode_flag == 0)
+        // See also : ISO 14496/10(2020) - Table 7-8 – Interpretation of adaptive_ref_pic_marking_mode_flag
+        if (slice->drpm->adaptive_ref_pic_marking_mode_flag == 0) /* Sliding window reference picture marking mode */
         {
             SlidingWindowDecodedReferencePictureMarkingProcess(slice, sps, pictures, picture);
         }
-        else
+        else /* Adaptive reference picture marking mode */
         {
             AdaptiveMemoryControlDecodedReferencePicutreMarkingPorcess(slice, pictures, picture);
         }
@@ -962,11 +1156,17 @@ void H264SliceDecodingProcess::AdaptiveMemoryControlDecodedReferencePicutreMarki
     {
         switch (memory_management_control_operation)
         {
+            case H264MmcoType::MMP_H264_MMOO_0:
+            {
+                MPP_H264_SD_LOG("[MM] mmco(%d)", memory_management_control_operation);
+                break;
+            }
             // See also : 8.2.5.4.1 Marking process of a short-term reference picture as "unused for reference"
             case H264MmcoType::MMP_H264_MMOO_1: /* unmark short term reference */
             {
                 uint32_t difference_of_pic_nums_minus1 = slice->drpm->memory_management_control_operations_datas[index++].difference_of_pic_nums_minus1;
-                uint64_t picNumX = GetPicNumX(slice, difference_of_pic_nums_minus1);
+                uint32_t picNumX = GetPicNumX(slice, difference_of_pic_nums_minus1);
+                MPP_H264_SD_LOG("[MM] mmco(%d) difference_of_pic_nums_minus1(%d) picNumX(%d)", memory_management_control_operation, difference_of_pic_nums_minus1, picNumX);
                 UnMarkUsedForShortTermReference(pictures, picNumX);
                 break;
             }
@@ -974,6 +1174,7 @@ void H264SliceDecodingProcess::AdaptiveMemoryControlDecodedReferencePicutreMarki
             case H264MmcoType::MMP_H264_MMOO_2: /* unmark long term reference */
             {
                 uint32_t long_term_pic_num = slice->drpm->memory_management_control_operations_datas[index++].long_term_pic_num;
+                MPP_H264_SD_LOG("[MM] mmco(%d) long_term_pic_num(%d)", memory_management_control_operation, long_term_pic_num);
                 UnMarkUsedForLongTermReference(pictures, long_term_pic_num);
                 break;
             }
@@ -982,7 +1183,8 @@ void H264SliceDecodingProcess::AdaptiveMemoryControlDecodedReferencePicutreMarki
             {
                 uint32_t difference_of_pic_nums_minus1 = slice->drpm->memory_management_control_operations_datas[index++].difference_of_pic_nums_minus1;
                 uint32_t long_term_frame_idx = slice->drpm->memory_management_control_operations_datas[index++].long_term_frame_idx;
-                uint64_t picNumX = GetPicNumX(slice, difference_of_pic_nums_minus1);
+                uint32_t picNumX = GetPicNumX(slice, difference_of_pic_nums_minus1);
+                MPP_H264_SD_LOG("[MM] mmco(%d) difference_of_pic_nums_minus1(%d) long_term_frame_idx(%d) picNumX(%d)", memory_management_control_operation, difference_of_pic_nums_minus1, long_term_frame_idx, picNumX);
                 UnMarkUsedForReference(pictures, picture->long_term_frame_idx);
                 MarkShortTermReferenceToLongTermReference(pictures, picNumX, long_term_frame_idx);
                 break;
@@ -992,6 +1194,7 @@ void H264SliceDecodingProcess::AdaptiveMemoryControlDecodedReferencePicutreMarki
             {
                 uint32_t max_long_term_frame_idx_plus1 = slice->drpm->memory_management_control_operations_datas[index++].max_long_term_frame_idx_plus1;
                 int64_t MaxLongTermFrameIdx = max_long_term_frame_idx_plus1 == 0 ? no_long_term_frame_indices : max_long_term_frame_idx_plus1 - 1;
+                MPP_H264_SD_LOG("[MM] mmco(%d) max_long_term_frame_idx_plus1(%d) MaxLongTermFrameIdx(%ld)", memory_management_control_operation, max_long_term_frame_idx_plus1, MaxLongTermFrameIdx);
                 for (auto _picture : pictures)
                 {
                     if (_picture->LongTermFrameIdx > max_long_term_frame_idx_plus1 - 1)
@@ -1009,6 +1212,7 @@ void H264SliceDecodingProcess::AdaptiveMemoryControlDecodedReferencePicutreMarki
             //            MaxLongTermFrameIdx to "no long-term frame indices"
             case H264MmcoType::MMP_H264_MMOO_5:
             {
+                MPP_H264_SD_LOG("[MM] mmco(%d)", memory_management_control_operation);
                 for (auto _picture : pictures)
                 {
                     _picture->MaxLongTermFrameIdx = no_long_term_frame_indices;
@@ -1020,27 +1224,14 @@ void H264SliceDecodingProcess::AdaptiveMemoryControlDecodedReferencePicutreMarki
             case H264MmcoType::MMP_H264_MMOO_6:
             {
                 uint32_t long_term_frame_idx = slice->drpm->memory_management_control_operations_datas[index++].long_term_frame_idx;
-                for (auto _picture : pictures)
+                MPP_H264_SD_LOG("[MM] mmco(%d) long_term_frame_idx(%d)", memory_management_control_operation, long_term_frame_idx);
+                picture->referenceFlag |= H264PictureContext::used_for_long_term_reference;
+                picture->LongTermFrameIdx = picture->long_term_frame_idx;
+                H264PictureContext::ptr compPicture = FindComplementaryPicture(pictures, picture);
+                if (compPicture)
                 {
-                    if (_picture->LongTermFrameIdx >= long_term_frame_idx)
-                    {
-                        _picture->referenceFlag = H264PictureContext::unused_for_reference;
-                        H264PictureContext::ptr compPicture = FindComplementaryPicture(pictures, _picture);
-                        if (compPicture)
-                        {
-                            compPicture->referenceFlag = H264PictureContext::unused_for_reference;
-                        }
-                    }
-                }
-                {
-                    picture->referenceFlag |= H264PictureContext::used_for_long_term_reference;
-                    picture->LongTermFrameIdx = picture->long_term_frame_idx;
-                    H264PictureContext::ptr compPicture = FindComplementaryPicture(pictures, picture);
-                    if (compPicture)
-                    {
-                        compPicture->referenceFlag |= H264PictureContext::used_for_long_term_reference;
-                        compPicture->LongTermFrameIdx = picture->long_term_frame_idx;
-                    }
+                    compPicture->referenceFlag |= H264PictureContext::used_for_long_term_reference;
+                    compPicture->LongTermFrameIdx = picture->long_term_frame_idx;
                 }
                 break;
             }
@@ -1104,12 +1295,13 @@ void H264SliceDecodingProcess::SliceDecodingProcess(H264NalSyntax::ptr nal)
                 }
                 picture->FrameNum = nal->slice->frame_num;
             }
-            MPP_H264_SD_LOG("[DP] nal_unit_type(%s-%d) slice_type(%s-%d) frame_num(%ld)", 
+            MPP_H264_SD_LOG("[DP] nal_unit_type(%s-%d) slice_type(%s-%d) frame_num(%ld) nal_ref_idc(%d)", 
                 H264NaluTypeToStr(nal->nal_unit_type).c_str(),
                 nal->nal_unit_type, 
                 H264SliceTypeToStr(nal->slice->slice_type).c_str(), 
                 nal->slice->slice_type, 
-                nal->slice->frame_num
+                nal->slice->frame_num,
+                nal->nal_ref_idc
             );
             OnDecodingBegin();
             DecodingProcessForPictureOrderCount(sps, nal->slice, nal->nal_ref_idc, picture);
@@ -1142,12 +1334,12 @@ H264PictureContext::cache H264SliceDecodingProcess::GetAllPictures()
     return _pictures;
 }
 
-std::vector<uint64_t /* PicNum or LongTermPicNum */> H264SliceDecodingProcess::GetRefPicList0()
+std::vector<H264PictureContext::ptr> H264SliceDecodingProcess::GetRefPicList0()
 {
     return _RefPicList0;
 }
 
-std::vector<uint64_t /* PicNum or LongTermPicNum */> H264SliceDecodingProcess::GetRefPicList1()
+std::vector<H264PictureContext::ptr> H264SliceDecodingProcess::GetRefPicList1()
 {
     return _RefPicList1;
 }
@@ -1177,6 +1369,39 @@ void H264SliceDecodingProcess::OnDecodingEnd()
         }
     }
     _pictures.swap(pictures);
+#if ENABLE_MMP_SD_DEBUG
+    {
+        H26x_LOG_INFO << "Short term reference:" << H26x_LOG_TERMINATOR;
+        uint32_t index = 0;
+        for (auto& picture : _pictures)
+        {
+            if (picture->referenceFlag & H264PictureContext::used_for_short_term_reference)
+            {
+                H26x_LOG_INFO << "  (" << index << ") FrameNum(" << picture->FrameNum 
+                            << ") TopFieldOrderCnt(" << picture->TopFieldOrderCnt 
+                            << ") BottomFieldOrderCnt(" << picture->BottomFieldOrderCnt << ")"
+                            << " PicNum(" << picture->PicNum << ")"
+                            << H26x_LOG_TERMINATOR;
+            }
+
+        }
+    }
+    {
+        H26x_LOG_INFO << "Long term reference:" << H26x_LOG_TERMINATOR;
+        uint32_t index = 0;
+        for (auto& picture : _pictures)
+        {
+            if (picture->referenceFlag & H264PictureContext::used_for_long_term_reference)
+            {
+                H26x_LOG_INFO << "  (" << index << ") FrameNum(" << picture->FrameNum 
+                            << ") TopFieldOrderCnt(" << picture->TopFieldOrderCnt 
+                            << ") BottomFieldOrderCnt(" << picture->BottomFieldOrderCnt << ")"
+                            << " LongTermPicNum(" << picture->LongTermPicNum << ")"
+                            << H26x_LOG_TERMINATOR;
+            }
+        }
+    }
+#endif /* ENABLE_MMP_SD_DEBUG */
 }
 
 } // namespace Codec

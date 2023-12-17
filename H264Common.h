@@ -1002,9 +1002,9 @@ public: /* 8.2.1 Decoding process for picture order count */
     int64_t  FrameNumOffset;
 public: /* 8.2.4 Decoding process for reference picture lists construction */
     uint64_t MaxFrameNum;
-    uint64_t FrameNum;
+    uint32_t FrameNum;
     uint64_t FrameNumWrap;
-    uint64_t PicNum;
+    uint32_t PicNum;
 public: /* 8.2.5 Decoded reference picture marking process */
     uint64_t referenceFlag;
     int64_t  MaxLongTermFrameIdx;
