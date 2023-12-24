@@ -998,7 +998,7 @@ public: /* inherit from nal unit */
     uint8_t   bottom_field_flag;
     uint8_t   pic_order_cnt_lsb;
     uint32_t  long_term_frame_idx;
-    std::set<uint32_t> memory_management_control_operations;
+    bool      has_memory_management_control_operation_5;
 public: /* 8.2.1 Decoding process for picture order count */
     int32_t  TopFieldOrderCnt;
     int32_t  BottomFieldOrderCnt;
