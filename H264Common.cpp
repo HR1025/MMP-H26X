@@ -378,6 +378,7 @@ H264PictureContext::H264PictureContext()
     long_term_frame_idx = 0;
     TopFieldOrderCnt = INT32_MAX;
     BottomFieldOrderCnt = INT32_MAX;
+    has_memory_management_control_operation_5 = false;
     prevPicOrderCntMsb = 0;
     FrameNumOffset = 0;
     MaxFrameNum = 0;

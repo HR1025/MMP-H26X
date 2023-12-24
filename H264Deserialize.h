@@ -32,7 +32,8 @@ public:
     ~H264Deserialize();
 public:
     /**
-     * @note for H264 Annex B type, common in network stream
+     * @note The format of NAL units for both packet-oriented transport and byte stream is identical except
+     *       that each NAL unit can be preceded by a start code prefix and extra padding bytes in the byte stream format.
      */
     bool DeserializeByteStreamNalUnit(H26xBinaryReader::ptr br, H264NalSyntax::ptr nal);
     bool DeserializeNalSyntax(H26xBinaryReader::ptr br, H264NalSyntax::ptr nal);
