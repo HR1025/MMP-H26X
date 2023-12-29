@@ -1,7 +1,7 @@
 //
 // H264SliceDecodingProcess.h
 //
-// Library: Coedec
+// Library: Codec
 // Package: H264
 // Module:  H264
 // 

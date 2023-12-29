@@ -1,7 +1,7 @@
 //
 // H264Deserialize.h
 //
-// Library: Coedec
+// Library: Codec
 // Package: H264
 // Module:  H264
 // 

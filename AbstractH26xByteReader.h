@@ -1,7 +1,7 @@
 //
 // AbstractH26xByteReader.h
 //
-// Library: Coedec
+// Library: Codec
 // Package: H26x
 // Module:  H26x
 // 
