@@ -1,5 +1,6 @@
 #include "H264SliceDecodingProcess.h"
 
+#include <cstdint>
 #include <deque>
 #include <sstream>
 #include <cassert>
@@ -243,10 +244,12 @@ static int32_t PicOrderCnt(H264PictureContext::ptr picX) // (8-1)
     }
 }
 
+#if 0
 static int32_t DiffPicOrderCnt(H264PictureContext::ptr picA, H264PictureContext::ptr picB) // (8-2)
 {
     return PicOrderCnt(picA) - PicOrderCnt(picB);
 }
+#endif
 
 /*************************************** 8.2.1 Decoding process for picture order count(Begin) ******************************************/
 /**
@@ -303,7 +306,7 @@ void H264SliceDecodingProcess::DecodingProcessForPictureOrderCount(H264NalSyntax
 void H264SliceDecodingProcess::DecodeH264PictureOrderCountType0(H264PictureContext::ptr prevPictrue, H264SpsSyntax::ptr sps, H264PpsSyntax::ptr pps, H264SliceHeaderSyntax::ptr slice, uint8_t nal_ref_idc, H264PictureContext::ptr picture)
 {
     int32_t prevPicOrderCntMsb = 0;
-    int32_t prevPicOrderCntLsb = 0;
+    uint32_t prevPicOrderCntLsb = 0;
     int32_t PicOrderCntMsb = 0;
     // determine prevPicOrderCntMsb and prevPicOrderCntLsb
     {
@@ -492,7 +495,7 @@ void H264SliceDecodingProcess::DecodeH264PictureOrderCountType2(H264PictureConte
 {
     int64_t FrameNumOffset = 0;
     int64_t tempPicOrderCnt = 0;
-    int64_t prevFrameNumOffset = 0;
+    uint64_t prevFrameNumOffset = 0;
     // determine prevFrameNumOffset
     {
         if (slice->slice_type != H264SliceType::MMP_H264_I_SLICE)
@@ -944,7 +947,7 @@ void H264SliceDecodingProcess::ModificationProcessForReferencePictureLists(H264S
 
     auto modificationProcessForReferencePictureLists = [&](uint32_t& refIdxLX, std::vector<H264PictureContext::ptr>& RefPicListX, uint32_t num_ref_idx_lX_active_minus1)
     {
-        int64_t picNumLXPred = 0;
+        uint64_t picNumLXPred = 0;
         bool initPicNumLXPred = false;
         for (const auto& modification_of_pic_nums_idc : slice->rplm->modification_of_pic_nums_idcs)
         {
@@ -1413,7 +1416,7 @@ void H264SliceDecodingProcess::AdaptiveMemoryControlDecodedReferencePicutreMarki
                 uint32_t long_term_frame_idx = slice->drpm->memory_management_control_operations_datas[index++].long_term_frame_idx;
                 MPP_H264_SD_LOG("[MM] mmco(%d) long_term_frame_idx(%d)", memory_management_control_operation, long_term_frame_idx);
                 picture->referenceFlag = H264PictureContext::used_for_long_term_reference;
-                picture->LongTermFrameIdx = picture->long_term_frame_idx;
+                picture->LongTermFrameIdx = long_term_frame_idx;
                 break;
             }
             default:
