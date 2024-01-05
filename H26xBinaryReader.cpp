@@ -95,7 +95,7 @@ void H26xBinaryReader::SE(int32_t& value)
                                                 do\
                                                 {\
                                                     ReadOneByteAuto();\
-                                                    size_t readBits = bits <= (8 - _curBitPos)? bits : (8 - _curBitPos);\
+                                                    size_t readBits = bits <= (8 - (size_t)_curBitPos)? bits : (8 - (size_t)_curBitPos);\
                                                     bits = bits - readBits;\
                                                     value <<= readBits;\
                                                     if (readBits < 8 && !firstFlag)\
@@ -424,7 +424,14 @@ void H26xBinaryReader::ReadOneByteAuto(bool force)
             ReadBytes(1, &_curValue);
             _zeroCount = 0;
         }
-        _zeroCount = _curValue == 0 ? ++_zeroCount % 3 : 0;
+        if (_curValue == 0)
+        {
+            _zeroCount = (_zeroCount + 1) % 3;
+        }
+        else
+        {
+            _zeroCount = 0;
+        }
         _curBitPos = 0;
     }
 }
