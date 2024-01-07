@@ -86,7 +86,9 @@ static uint64_t GetPicNumX(H264SliceHeaderSyntax::ptr slice, uint32_t difference
         }
         else if (slice->field_pic_flag == 1)
         {
-            CurrPicNum = 2 * slice->frame_num + 1;
+            // CurrPicNum = 2 * slice->frame_num + 1;
+            // Hint : not support for now
+            assert(false);
         }
         picNumX = CurrPicNum - (difference_of_pic_nums_minus1 + 1); // (8-39)
     }
@@ -141,14 +143,19 @@ static void UnMarkUsedForShortTermReference(H264PictureContext::cache pictures, 
             }
             else if (_picture->field_pic_flag == 1)
             {
-                _picture->referenceFlag = _picture->referenceFlag ^ H264PictureContext::used_for_short_term_reference;
-                H264PictureContext::ptr compPicture = FindComplementaryPicture(pictures, _picture);
-                if (compPicture)
-                {
-                    compPicture->referenceFlag = compPicture->referenceFlag ^ H264PictureContext::used_for_short_term_reference;
-                }
+                // _picture->referenceFlag = _picture->referenceFlag ^ H264PictureContext::used_for_short_term_reference;
+                // H264PictureContext::ptr compPicture = FindComplementaryPicture(pictures, _picture);
+                // if (compPicture)
+                // {
+                //     compPicture->referenceFlag = compPicture->referenceFlag ^ H264PictureContext::used_for_short_term_reference;
+                // }
+                // Hint : not support for now
+                assert(false);
             }
             MPP_H264_SD_LOG("[RF] UnMarkUsedForShortTermReference, PicNum(%d) FrameNum(%d)", _picture->PicNum, _picture->FrameNum);
+            // Hint : 参考 FFmpeg 6.x 以及 openh264 , 此处应当只 umark 一个 short term picture, 按照 DPB 的顺序
+            //        同时 ISO 中也存在 `a short-term reference picture` 而非 `all short-term refernce pictures`
+            break;
         }
     }
 }
@@ -170,12 +177,14 @@ static void UnMarkUsedForLongTermReference(H264PictureContext::cache pictures, u
             }
             else if (_picture->field_pic_flag == 1)
             {
-                _picture->referenceFlag = _picture->referenceFlag ^ H264PictureContext::used_for_long_term_reference;
-                H264PictureContext::ptr compPicture = FindComplementaryPicture(pictures, _picture);
-                if (compPicture)
-                {
-                    compPicture->referenceFlag = compPicture->referenceFlag ^ H264PictureContext::used_for_long_term_reference;
-                }
+                // _picture->referenceFlag = _picture->referenceFlag ^ H264PictureContext::used_for_long_term_reference;
+                // H264PictureContext::ptr compPicture = FindComplementaryPicture(pictures, _picture);
+                // if (compPicture)
+                // {
+                //     compPicture->referenceFlag = compPicture->referenceFlag ^ H264PictureContext::used_for_long_term_reference;
+                // }
+                // Hint : not support for now
+                assert(false);
             }
         }
     }
@@ -624,28 +633,30 @@ void H264SliceDecodingProcess::DecodingProcessForPictureNumbers(H264SliceHeaderS
                 //              1) 是不是直接不支持场编码问题就都解决了, 当前 h264 场编码已经应用得比较少了;
                 //                 支持场编码一方面逻辑异常复杂,另一方面也不好进行测试验证
                 //              2) 确认一下 FFmpeg 6.x (FFmpeg/libavcodec/h264_refs.c) 这部分的代码逻辑 (,但是看起来不是很好确认 ...) 
-                if (_picture->referenceFlag & H264PictureContext::used_for_short_term_reference)
-                {
-                    if (_picture->bottom_field_flag)
-                    {
-                        _picture->PicNum = 2 * _picture->FrameNumWrap + 1; // (8-30)
-                    }
-                    else
-                    {
-                        _picture->PicNum = 2 * _picture->FrameNumWrap; // (8-31)
-                    }
-                }
-                if (_picture->referenceFlag & H264PictureContext::used_for_long_term_reference)
-                {
-                    if (_picture->bottom_field_flag)
-                    {
-                        _picture->LongTermPicNum = 2 * _picture->LongTermFrameIdx + 1;
-                    }
-                    else
-                    {
-                        _picture->LongTermPicNum = 2 * picture->LongTermFrameIdx;
-                    }
-                }
+                // if (_picture->referenceFlag & H264PictureContext::used_for_short_term_reference)
+                // {
+                //     if (_picture->bottom_field_flag)
+                //     {
+                //         _picture->PicNum = 2 * _picture->FrameNumWrap + 1; // (8-30)
+                //     }
+                //     else
+                //     {
+                //         _picture->PicNum = 2 * _picture->FrameNumWrap; // (8-31)
+                //     }
+                // }
+                // if (_picture->referenceFlag & H264PictureContext::used_for_long_term_reference)
+                // {
+                //     if (_picture->bottom_field_flag)
+                //     {
+                //         _picture->LongTermPicNum = 2 * _picture->LongTermFrameIdx + 1;
+                //     }
+                //     else
+                //     {
+                //         _picture->LongTermPicNum = 2 * picture->LongTermFrameIdx;
+                //     }
+                // }
+                // Hint : not support for now
+                assert(false);
             }
         }
     }
@@ -926,7 +937,9 @@ void H264SliceDecodingProcess::ModificationProcessForReferencePictureLists(H264S
         }
         else if (slice->field_pic_flag == 1)
         {
-            CurrPicNum = 2 * slice->frame_num + 1;
+            // CurrPicNum = 2 * slice->frame_num + 1;
+            // Hint : not support for now
+            assert(false);
         }
     }
     // determine MaxPicNum
@@ -941,7 +954,9 @@ void H264SliceDecodingProcess::ModificationProcessForReferencePictureLists(H264S
         }
         else if (slice->field_pic_flag == 1)
         {
-            MaxPicNum = 2 * MaxFrameNum;
+            // MaxPicNum = 2 * MaxFrameNum;
+            // Hint : not support for now
+            assert(false);
         }
     }
 
@@ -970,7 +985,7 @@ void H264SliceDecodingProcess::ModificationProcessForReferencePictureLists(H264S
                 {
                     if (modification_of_pic_nums_idc == 0) // (8-34)
                     {
-                        if (picNumLXPred - (abs_diff_pic_num_minus1 + 1) < 0)
+                        if ((int64_t)picNumLXPred - (abs_diff_pic_num_minus1 + 1) < 0)
                         {
                             picNumLXNoWrap = picNumLXPred - (abs_diff_pic_num_minus1 + 1) + MaxPicNum;
                         }
@@ -1284,20 +1299,21 @@ void H264SliceDecodingProcess::SlidingWindowDecodedReferencePictureMarkingProces
                 {
                     minFrameNumWrap = _picture->FrameNumWrap;
                     __picture = _picture;
-                    break;
                 }
             }
             __picture->referenceFlag = H264PictureContext::unused_for_reference;
             if (__picture->field_pic_flag == 1)
             {
-                H264PictureContext::ptr compPicture = nullptr;
-                compPicture = FindComplementaryPicture(pictures, __picture);
-                if (!compPicture)
-                {
-                    assert(false);
-                    return;
-                }
-                compPicture->referenceFlag = H264PictureContext::unused_for_reference;
+                // H264PictureContext::ptr compPicture = nullptr;
+                // compPicture = FindComplementaryPicture(pictures, __picture);
+                // if (!compPicture)
+                // {
+                //     assert(false);
+                //     return;
+                // }
+                // compPicture->referenceFlag = H264PictureContext::unused_for_reference;
+                // Hint : not support for now
+                assert(false);
             }     
         }
     }
