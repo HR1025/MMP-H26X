@@ -689,12 +689,13 @@ void H264SliceDecodingProcess::InitializationProcessForReferencePictureLists(H26
         }
         std::sort(shortTermRefPicList.begin(), shortTermRefPicList.end(), [](const H264PictureContext::ptr& left, const H264PictureContext::ptr& right) -> bool
         {
-            return left->PicNum < right->PicNum;
+            return left->PicNum > right->PicNum;
         });
         std::sort(longTermRefList.begin(), longTermRefList.end(), [](const H264PictureContext::ptr& left, const H264PictureContext::ptr& right) -> bool
         {
-            return left->LongTermPicNum > right->LongTermPicNum;
+            return left->LongTermPicNum < right->LongTermPicNum;
         });
+        MPP_H264_SD_LOG("-- shortTermRefPicList(%ld) longTermRefList(%ld)", shortTermRefPicList.size(), longTermRefList.size());
         for (auto& shortTermPicture : shortTermRefPicList)
         {
             _RefPicList0.push_back(shortTermPicture);
@@ -732,7 +733,7 @@ void H264SliceDecodingProcess::InitializationProcessForReferencePictureLists(H26
                 }
                 std::sort(RefPicList01.begin(), RefPicList01.end(), [](const H264PictureContext::ptr& left, const H264PictureContext::ptr& right)->bool
                 {
-                    return PicOrderCnt(left) < PicOrderCnt(right);
+                    return PicOrderCnt(left) > PicOrderCnt(right);
                 });
             }
             {
@@ -748,7 +749,7 @@ void H264SliceDecodingProcess::InitializationProcessForReferencePictureLists(H26
                 }
                 std::sort(RefPicList02.begin(), RefPicList02.end(), [](const H264PictureContext::ptr& left, const H264PictureContext::ptr& right)->bool
                 {
-                    return PicOrderCnt(left) > PicOrderCnt(right);
+                    return PicOrderCnt(left) < PicOrderCnt(right);
                 });
             }
             {
@@ -761,9 +762,10 @@ void H264SliceDecodingProcess::InitializationProcessForReferencePictureLists(H26
                 }
                 std::sort(RefPicList03.begin(), RefPicList03.end(), [](const H264PictureContext::ptr& left, const H264PictureContext::ptr& right) -> bool
                 {
-                    return left->LongTermPicNum > right->LongTermPicNum;
+                    return left->LongTermPicNum < right->LongTermPicNum;
                 });
             }
+            MPP_H264_SD_LOG("-- RefPicList01(%ld) RefPicList02(%ld) RefPicList03(%ld)", RefPicList01.size(), RefPicList02.size(), RefPicList03.size());
             for (const auto& RefPic : RefPicList01)
             {
                 _RefPicList0.push_back(RefPic);
@@ -828,6 +830,7 @@ void H264SliceDecodingProcess::InitializationProcessForReferencePictureLists(H26
                     return left->LongTermPicNum > right->LongTermPicNum;
                 });
             }
+            MPP_H264_SD_LOG("-- RefPicList11(%ld) RefPicList12(%ld) RefPicList13(%ld)", RefPicList11.size(), RefPicList12.size(), RefPicList13.size());
             for (const auto& RefPic : RefPicList11)
             {
                 _RefPicList1.push_back(RefPic);
@@ -877,7 +880,7 @@ void H264SliceDecodingProcess::InitializationProcessForReferencePictureLists(H26
                << "FrameNum(" << _RefPicList0[i]->FrameNum << ")";
             if (_RefPicList0[i]->referenceFlag & H264PictureContext::used_for_short_term_reference)
             {
-                ss << " PicOrderCnt(" << PicOrderCnt(_RefPicList0[i]) << ")";
+                ss << " PicOrderCnt(" << PicOrderCnt(_RefPicList0[i]) << ") PicNum(" << _RefPicList0[i]->PicNum << ")";
             }
             else if (_RefPicList0[i]->referenceFlag & H264PictureContext::used_for_long_term_reference)
             {
@@ -900,7 +903,7 @@ void H264SliceDecodingProcess::InitializationProcessForReferencePictureLists(H26
                << "FrameNum(" << _RefPicList1[i]->FrameNum << ")";
             if (_RefPicList0[i]->referenceFlag & H264PictureContext::used_for_short_term_reference)
             {
-                ss << " PicOrderCnt(" << PicOrderCnt(_RefPicList0[i]) << ")";
+                ss << " PicOrderCnt(" << PicOrderCnt(_RefPicList0[i]) << ") PicNum(" << _RefPicList0[i]->PicNum << ")";
             }
             else if (_RefPicList0[i]->referenceFlag & H264PictureContext::used_for_long_term_reference)
             {
