@@ -1013,6 +1013,7 @@ void H264SliceDecodingProcess::ModificationProcessForReferencePictureLists(H264S
                 picNumLXPred = picNumLXNoWrap;
                 // determine picNumLX (8-36)
                 {
+#if 0
                     if (picNumLXNoWrap > CurrPicNum)
                     {
                         picNumLX = picNumLXNoWrap - MaxPicNum;
@@ -1021,6 +1022,10 @@ void H264SliceDecodingProcess::ModificationProcessForReferencePictureLists(H264S
                     {
                         picNumLX = picNumLXNoWrap;
                     }
+#else
+                    // Reference : FFmpeg 6.x and openh264
+                    picNumLX = picNumLX & (MaxPicNum - 1);
+#endif
                 }
                 // (8-37)
                 {
@@ -1342,8 +1347,8 @@ void H264SliceDecodingProcess::AdaptiveMemoryControlDecodedReferencePicutreMarki
                             << ") BottomFieldOrderCnt(" << __picture->BottomFieldOrderCnt << ")"
                             << " PicNum(" << __picture->PicNum << ")"
                             << H26x_LOG_TERMINATOR;
+                index++;
             }
-
         }
     }
     {
@@ -1358,6 +1363,7 @@ void H264SliceDecodingProcess::AdaptiveMemoryControlDecodedReferencePicutreMarki
                             << ") BottomFieldOrderCnt(" << __picture->BottomFieldOrderCnt << ")"
                             << " LongTermPicNum(" << __picture->LongTermPicNum << ")"
                             << H26x_LOG_TERMINATOR;
+                index++;
             }
         }
     }
@@ -1456,6 +1462,7 @@ void H264SliceDecodingProcess::AdaptiveMemoryControlDecodedReferencePicutreMarki
                             << ") BottomFieldOrderCnt(" << __picture->BottomFieldOrderCnt << ")"
                             << " PicNum(" << __picture->PicNum << ")"
                             << H26x_LOG_TERMINATOR;
+                index++;
             }
 
         }
@@ -1472,6 +1479,7 @@ void H264SliceDecodingProcess::AdaptiveMemoryControlDecodedReferencePicutreMarki
                             << ") BottomFieldOrderCnt(" << __picture->BottomFieldOrderCnt << ")"
                             << " LongTermPicNum(" << __picture->LongTermPicNum << ")"
                             << H26x_LOG_TERMINATOR;
+                index++;
             }
         }
     }
