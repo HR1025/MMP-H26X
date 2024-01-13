@@ -1537,7 +1537,6 @@ void H264SliceDecodingProcess::SliceDecodingProcess(H264NalSyntax::ptr nal)
             );
             OnDecodingBegin();
             DecodingProcessForPictureOrderCount(nal, sps, pps, nal->slice, nal->nal_ref_idc, picture);
-            DecodeReferencePictureMarkingProcess(nal, nal->slice, sps, _pictures, picture, nal->nal_ref_idc);
             if (nal->slice->slice_type == H264SliceType::MMP_H264_P_SLICE ||
                 nal->slice->slice_type == H264SliceType::MMP_H264_SP_SLICE ||
                 nal->slice->slice_type == H264SliceType::MMP_H264_B_SLICE
@@ -1545,6 +1544,7 @@ void H264SliceDecodingProcess::SliceDecodingProcess(H264NalSyntax::ptr nal)
             {
                 DecodingProcessForReferencePictureListsConstruction(nal->slice, sps, _pictures, picture);
             }
+            DecodeReferencePictureMarkingProcess(nal, nal->slice, sps, _pictures, picture, nal->nal_ref_idc);
             OnDecodingEnd();
             picture->id = _curId++;
             _pictures.push_back(picture);

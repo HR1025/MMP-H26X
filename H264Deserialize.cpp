@@ -754,6 +754,11 @@ bool H264Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
                     br->UE(slice->num_ref_idx_l1_active_minus1);
                 }
             }
+            else /* if (slice->num_ref_idx_active_override_flag == 0) */
+            {
+                slice->num_ref_idx_l0_active_minus1 = pps->num_ref_idx_l0_default_active_minus1;
+                slice->num_ref_idx_l1_active_minus1 = pps->num_ref_idx_l1_default_active_minus1;
+            }
         }
         if (nal->nal_unit_type == 20 /* MMP_H264_NALU_TYPE_SLC_EXT */ || nal->nal_unit_type == 21)
         {
