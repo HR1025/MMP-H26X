@@ -72,9 +72,9 @@ static H264PictureContext::ptr /* complementary picture */ FindComplementaryPict
     return compPicture;
 }
 
-static uint64_t GetPicNumX(H264SliceHeaderSyntax::ptr slice, uint32_t difference_of_pic_nums_minus1)
+static int32_t GetPicNumX(H264SliceHeaderSyntax::ptr slice, uint32_t difference_of_pic_nums_minus1)
 {
-    uint64_t picNumX = 0;
+    int32_t picNumX = 0;
     {
         // The variable CurrPicNum is derived as follows:
         // - If field_pic_flag is equal to 0, CurrPicNum is set equal to frame_num.
@@ -95,12 +95,12 @@ static uint64_t GetPicNumX(H264SliceHeaderSyntax::ptr slice, uint32_t difference
     return picNumX;
 }
 
-static H264PictureContext::ptr FindPictureByPicNum(H264PictureContext::cache pictures, uint64_t PicNum)
+static H264PictureContext::ptr FindPictureByPicNum(H264PictureContext::cache pictures, int64_t PicNum)
 {
     H264PictureContext::ptr picture = nullptr;
     for (auto _picture : pictures)
     {
-        if (_picture->referenceFlag & H264PictureContext::used_for_short_term_reference)
+        if (_picture->referenceFlag & H264PictureContext::used_for_short_term_reference )
         {
             if (PicNum == _picture->PicNum)
             {
@@ -131,7 +131,7 @@ static H264PictureContext::ptr FindPictureByLongTermPicNum(H264PictureContext::c
     return picture;
 }
 
-static void UnMarkUsedForShortTermReference(H264PictureContext::cache pictures, uint64_t picNumX)
+static void UnMarkUsedForShortTermReference(H264PictureContext::cache pictures, int32_t picNumX)
 {
     for (auto _picture : pictures)
     {
@@ -152,7 +152,7 @@ static void UnMarkUsedForShortTermReference(H264PictureContext::cache pictures, 
                 // Hint : not support for now
                 assert(false);
             }
-            MPP_H264_SD_LOG("[RF] UnMarkUsedForShortTermReference, PicNum(%d) FrameNum(%d)", _picture->PicNum, _picture->FrameNum);
+            MPP_H264_SD_LOG("[RF] UnMarkUsedForShortTermReference, PicNum(%ld) FrameNum(%d)", _picture->PicNum, _picture->FrameNum);
             // Hint : 参考 FFmpeg 6.x 以及 openh264 , 此处应当只 umark 一个 short term picture, 按照 DPB 的顺序
             //        同时 ISO 中也存在 `a short-term reference picture` 而非 `all short-term refernce pictures`
             break;
@@ -206,7 +206,7 @@ static void UnMarkUsedForReference(H264PictureContext::cache pictures, uint32_t 
     }
 }
 
-static void MarkShortTermReferenceToLongTermReference(H264PictureContext::cache pictures, uint64_t picNumX, uint32_t long_term_frame_idx)
+static void MarkShortTermReferenceToLongTermReference(H264PictureContext::cache pictures, int32_t picNumX, uint32_t long_term_frame_idx)
 {
     for (auto _picture : pictures)
     {
@@ -927,7 +927,7 @@ void H264SliceDecodingProcess::ModificationProcessForReferencePictureLists(H264S
 {
     uint64_t MaxPicNum = 0;
     uint64_t CurrPicNum = 0;
-    uint64_t picNumLX = 0;
+    int64_t picNumLX = 0;
     size_t index = 0;
     // determine CurrPicNum
     // The variable CurrPicNum is derived as follows:
@@ -1013,7 +1013,6 @@ void H264SliceDecodingProcess::ModificationProcessForReferencePictureLists(H264S
                 picNumLXPred = picNumLXNoWrap;
                 // determine picNumLX (8-36)
                 {
-#if 0
                     if (picNumLXNoWrap > CurrPicNum)
                     {
                         picNumLX = picNumLXNoWrap - MaxPicNum;
@@ -1022,14 +1021,10 @@ void H264SliceDecodingProcess::ModificationProcessForReferencePictureLists(H264S
                     {
                         picNumLX = picNumLXNoWrap;
                     }
-#else
-                    // Reference : FFmpeg 6.x and openh264
-                    picNumLX = picNumLX & (MaxPicNum - 1);
-#endif
                 }
                 // (8-37)
                 {
-                    auto PicNumF = [MaxPicNum](H264PictureContext::ptr picture) -> uint32_t
+                    auto PicNumF = [MaxPicNum](H264PictureContext::ptr picture) -> int32_t
                     {
                         // Hint :
                         // The function PicNumF( RefPicListX[ cIdx ] ) is derived as follows:
@@ -1141,7 +1136,6 @@ void H264SliceDecodingProcess::ModificationProcessForReferencePictureLists(H264S
         }
         else
         {
-            assert(false);
             return "?";
         }
     };
@@ -1220,7 +1214,6 @@ void H264SliceDecodingProcess::SequenceOfOperationsForDecodedReferencePictureMar
 {
     if (nal->nal_unit_type == H264NaluType::MMP_H264_NALU_TYPE_IDR)
     {
-        pictures.clear();
         if (slice->drpm->long_term_reference_flag == 0)
         {
             picture->referenceFlag = H264PictureContext::used_for_short_term_reference;
@@ -1382,7 +1375,7 @@ void H264SliceDecodingProcess::AdaptiveMemoryControlDecodedReferencePicutreMarki
             case H264MmcoType::MMP_H264_MMOO_1: /* unmark short term reference */
             {
                 uint32_t difference_of_pic_nums_minus1 = slice->drpm->memory_management_control_operations_datas[index++].difference_of_pic_nums_minus1;
-                uint32_t picNumX = GetPicNumX(slice, difference_of_pic_nums_minus1);
+                int32_t picNumX = GetPicNumX(slice, difference_of_pic_nums_minus1);
                 MPP_H264_SD_LOG("[MM] mmco(%d) difference_of_pic_nums_minus1(%d) picNumX(%d)", memory_management_control_operation, difference_of_pic_nums_minus1, picNumX);
                 UnMarkUsedForShortTermReference(pictures, picNumX);
                 break;
@@ -1400,7 +1393,7 @@ void H264SliceDecodingProcess::AdaptiveMemoryControlDecodedReferencePicutreMarki
             {
                 uint32_t difference_of_pic_nums_minus1 = slice->drpm->memory_management_control_operations_datas[index++].difference_of_pic_nums_minus1;
                 uint32_t long_term_frame_idx = slice->drpm->memory_management_control_operations_datas[index++].long_term_frame_idx;
-                uint32_t picNumX = GetPicNumX(slice, difference_of_pic_nums_minus1);
+                int32_t picNumX = GetPicNumX(slice, difference_of_pic_nums_minus1);
                 MPP_H264_SD_LOG("[MM] mmco(%d) difference_of_pic_nums_minus1(%d) long_term_frame_idx(%d) picNumX(%d)", memory_management_control_operation, difference_of_pic_nums_minus1, long_term_frame_idx, picNumX);
                 UnMarkUsedForReference(pictures, picture->long_term_frame_idx);
                 MarkShortTermReferenceToLongTermReference(pictures, picNumX, long_term_frame_idx);
@@ -1545,7 +1538,11 @@ void H264SliceDecodingProcess::SliceDecodingProcess(H264NalSyntax::ptr nal)
             );
             OnDecodingBegin();
             DecodingProcessForPictureOrderCount(nal, sps, pps, nal->slice, nal->nal_ref_idc, picture);
-            if (nal->slice->slice_type == H264SliceType::MMP_H264_P_SLICE ||
+            if (nal->nal_unit_type == H264NaluType::MMP_H264_NALU_TYPE_IDR)
+            {
+                _pictures.clear();
+            }
+            else if (nal->slice->slice_type == H264SliceType::MMP_H264_P_SLICE ||
                 nal->slice->slice_type == H264SliceType::MMP_H264_SP_SLICE ||
                 nal->slice->slice_type == H264SliceType::MMP_H264_B_SLICE
             )
