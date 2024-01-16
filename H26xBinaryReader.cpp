@@ -327,22 +327,30 @@ bool H26xBinaryReader::more_rbsp_data()
             }
             catch (...)
             {
-                // Hint : nothing to do
+                // Hint : 剩余长度不足 3 时可以进入此异常
+                _rbspEndByte = _reader->Tell();
             }
         }
         // 2 - 移除 rbsp_trailing_bits() 后的几个 zero byte (,如果存在的话)
         {
-            
-            uint8_t zeroByte = 0;
-            do
+            try
             {
-                U(8, zeroByte, true);
-                if (zeroByte == 0)
+                uint8_t zeroByte = 0;
+                do
                 {
-                    _reader->Seek(_reader->Tell() - 1);
-                    _rbspEndByte = _reader->Tell();
-                }
-            } while (zeroByte == 0);            
+                    U(8, zeroByte, true);
+                    if (zeroByte == 0)
+                    {
+                        _reader->Seek(_reader->Tell() - 1);
+                        _rbspEndByte = _reader->Tell();
+                    }
+                } while (zeroByte == 0);   
+            }
+            catch (...)
+            {
+                // Hint : 无可读数据进入此异常
+                // nothing to do
+            }
         }
         _reader->Seek(curPosByte);
         if (curBitPos != 8)
