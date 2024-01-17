@@ -1293,7 +1293,7 @@ void H264SliceDecodingProcess::SlidingWindowDecodedReferencePictureMarkingProces
         if (numShortTerm + numLongTerm == std::max(1u, sps->max_num_ref_frames))
         {
             H264PictureContext::ptr __picture = nullptr;
-            uint64_t minFrameNumWrap = UINT64_MAX;
+            int64_t minFrameNumWrap = INT64_MAX;
             for (auto& _picture : pictures)
             {
                 if (_picture->FrameNumWrap < minFrameNumWrap)
@@ -1302,6 +1302,7 @@ void H264SliceDecodingProcess::SlidingWindowDecodedReferencePictureMarkingProces
                     __picture = _picture;
                 }
             }
+            MPP_H264_SD_LOG("[DRPM] Mark short term picture to unsued FrameNum(%d) FrameNumWrap(%ld)", __picture->FrameNum, __picture->FrameNumWrap);
             __picture->referenceFlag = H264PictureContext::unused_for_reference;
             if (__picture->field_pic_flag == 1)
             {
@@ -1528,7 +1529,11 @@ void H264SliceDecodingProcess::SliceDecodingProcess(H264NalSyntax::ptr nal)
                 picture->pic_order_cnt_lsb = nal->slice->pic_order_cnt_lsb;
                 picture->FrameNum = nal->slice->frame_num;
             }
-            MPP_H264_SD_LOG("[DP] nal_unit_type(%s-%d) slice_type(%s-%d) frame_num(%ld) nal_ref_idc(%d)", 
+#ifdef ENABLE_MMP_SD_DEBUG
+            static uint64_t count = 0;
+#endif /* ENABLE_MMP_SD_DEBUG */
+            MPP_H264_SD_LOG("[DP] %ld nal_unit_type(%s-%d) slice_type(%s-%d) frame_num(%ld) nal_ref_idc(%d)", 
+                count++,
                 H264NaluTypeToStr(nal->nal_unit_type).c_str(),
                 nal->nal_unit_type, 
                 H264SliceTypeToStr(nal->slice->slice_type).c_str(), 
