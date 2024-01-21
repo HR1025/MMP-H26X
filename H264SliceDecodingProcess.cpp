@@ -35,6 +35,29 @@ namespace Codec
 //             int32_t WelsMarkAsRef (PWelsDecoderContext pCtx, PPicture pLastDec)
 constexpr int64_t no_long_term_frame_indices = -1;
 
+H264PictureContext::H264PictureContext()
+{
+    id = 0;
+    id = 0;
+    field_pic_flag = 0;
+    bottom_field_flag = 0;
+    pic_order_cnt_lsb = 0;
+    long_term_frame_idx = 0;
+    TopFieldOrderCnt = INT32_MAX;
+    BottomFieldOrderCnt = INT32_MAX;
+    has_memory_management_control_operation_5 = false;
+    prevPicOrderCntMsb = 0;
+    FrameNumOffset = 0;
+    MaxFrameNum = 0;
+    FrameNum = 0;
+    FrameNumWrap = 0;
+    PicNum = 0;
+    referenceFlag = 0;
+    MaxLongTermFrameIdx = 0;
+    LongTermFrameIdx = 0;
+    LongTermPicNum = 0;
+}
+
 static bool PictureIsSecondField(H264PictureContext::ptr picture)
 {
     return picture->bottom_field_flag == 1;
@@ -1510,7 +1533,7 @@ void H264SliceDecodingProcess::SliceDecodingProcess(H264NalSyntax::ptr nal)
         case H264NaluType::MMP_H264_NALU_TYPE_IDR:
         case H264NaluType::MMP_H264_NALU_TYPE_SLICE:
         {
-            H264PictureContext::ptr picture = std::make_shared<H264PictureContext>();
+            H264PictureContext::ptr picture = CreatePictureContext();
             H264SpsSyntax::ptr sps = nullptr;
             H264PpsSyntax::ptr pps = nullptr;
             if (!_ppss.count(nal->slice->pic_parameter_set_id))
@@ -1584,6 +1607,11 @@ std::vector<H264PictureContext::ptr> H264SliceDecodingProcess::GetRefPicList0()
 std::vector<H264PictureContext::ptr> H264SliceDecodingProcess::GetRefPicList1()
 {
     return _RefPicList1;
+}
+
+H264PictureContext::ptr H264SliceDecodingProcess::CreatePictureContext()
+{
+    return std::make_shared<H264PictureContext>();
 }
 
 void H264SliceDecodingProcess::OnDecodingBegin()
