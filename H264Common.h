@@ -977,44 +977,5 @@ public:
     int8_t  LongTermFrameIdx;
 };
 
-class H264PictureContext
-{
-public:
-    using ptr = std::shared_ptr<H264PictureContext>;
-public:
-    using cache = std::vector<H264PictureContext::ptr>;
-public:
-    H264PictureContext();
-    ~H264PictureContext() = default;
-public:
-    static constexpr uint64_t unused_for_reference = 0;
-    static constexpr uint64_t used_for_short_term_reference = 1 << 0U;
-    static constexpr uint64_t used_for_long_term_reference = 1 << 1U;
-    static constexpr uint64_t non_existing = 1 << 2U;
-public:
-    uint64_t id;
-public: /* inherit from nal unit */
-    uint8_t   field_pic_flag;
-    uint8_t   bottom_field_flag;
-    uint8_t   pic_order_cnt_lsb;
-    uint32_t  long_term_frame_idx;
-    bool      has_memory_management_control_operation_5;
-public: /* 8.2.1 Decoding process for picture order count */
-    int32_t  TopFieldOrderCnt;
-    int32_t  BottomFieldOrderCnt;
-    int32_t  prevPicOrderCntMsb;
-    int64_t  FrameNumOffset;
-public: /* 8.2.4 Decoding process for reference picture lists construction */
-    uint64_t MaxFrameNum;
-    uint32_t FrameNum;
-    uint64_t FrameNumWrap;
-    int64_t PicNum;
-public: /* 8.2.5 Decoded reference picture marking process */
-    uint64_t referenceFlag;
-    int64_t  MaxLongTermFrameIdx;
-    int64_t  LongTermFrameIdx;
-    uint32_t LongTermPicNum;
-};
-
 } // namespace Codec
 } // namespace Mmp

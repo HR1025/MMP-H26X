@@ -1115,6 +1115,7 @@ bool H264Deserialize::DeserializePpsSyntax(H26xBinaryReader::ptr br, H264PpsSynt
     // See aslo : ISO 14496/10(2020) - 7.3.2.2 Picture parameter set RBSP syntax
     try
     {
+        br->more_rbsp_data();
         br->UE(pps->pic_parameter_set_id);
         MPP_H26X_SYNTAXT_STRICT_CHECK(pps->pic_parameter_set_id >= 0 && pps->pic_parameter_set_id <= 255, "[sps] pic_parameter_set_id out of range", return false);
         br->UE(pps->seq_parameter_set_id);
