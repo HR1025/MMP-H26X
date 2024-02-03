@@ -604,6 +604,32 @@ bool H264Deserialize::DeserializeSpsSyntax(H26xBinaryReader::ptr br, H264SpsSynt
                 sps->separate_colour_plane_flag = 0;
                 sps->bit_depth_luma_minus8 = 0;
                 sps->bit_depth_chroma_minus8 = 0;
+                // (7-8)
+                // Flat_4x4_16[ k ] = 16, with k = 0..15
+                {
+                    sps->ScalingList4x4.resize(6); /* 0..5 */
+                    for (size_t i=0; i<6; i++)
+                    {
+                        sps->ScalingList4x4[i].resize(16);
+                        for (size_t j=0; j<16; j++)
+                        {
+                            sps->ScalingList4x4[i][j] = 16;
+                        }
+                    }
+                }
+                // (7-9)
+                // Flat_8x8_16[ k ] = 16, with k = 0..63
+                {
+                    sps->ScalingList8x8.resize(6); /* 6..11 */
+                    for (size_t i=0; i<2; i++)
+                    {
+                        sps->ScalingList8x8[i].resize(64);
+                        for (size_t j=0; j<64; j++)
+                        {
+                            sps->ScalingList8x8[i][j] = 16;
+                        }
+                    }
+                }
             }
         }
         br->UE(sps->log2_max_frame_num_minus4);
@@ -1211,32 +1237,10 @@ bool H264Deserialize::DeserializePpsSyntax(H26xBinaryReader::ptr br, H264PpsSynt
                 pps->second_chroma_qp_index_offset = pps->chroma_qp_index_offset;
             }
         }
-        else
+        if (!pps->pic_scaling_matrix_present_flag)
         {
-            // (7-8)
-            {
-                pps->ScalingList4x4.resize(6);
-                for (size_t i=0; i<6; i++)
-                {
-                    pps->ScalingList4x4[i].resize(16);
-                    for (size_t j=0; j<16; j++)
-                    {
-                        pps->ScalingList4x4[i][j] = 16;
-                    }
-                }
-            }
-            // (7-9)
-            {
-                pps->ScalingList8x8.resize(2);
-                for (size_t i=0; i<2; i++)
-                {
-                    pps->ScalingList8x8[i].resize(64);
-                    for (size_t j=0; j<64; j++)
-                    {
-                        pps->ScalingList8x8[i][j] = 16;
-                    }
-                }
-            }
+            pps->ScalingList4x4 = sps->ScalingList4x4;
+            pps->ScalingList8x8 = sps->ScalingList8x8;
         }
         br->rbsp_trailing_bits();
         _contex->ppsSet[pps->pic_parameter_set_id] = pps;
