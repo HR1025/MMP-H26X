@@ -434,7 +434,7 @@ bool H264Deserialize::DeserializeSeiSyntax(H26xBinaryReader::ptr br, H264SeiSynt
             case H264SeiType::MMP_H264_SEI_USER_DATA_REGISTERED_ITU_T_T35:
             {
                 sei->udr = std::make_shared<H264SeiUserDataRegisteredSyntax>();
-                if (!DeserializeSeiUserDataRegisteredSyntax(br, sei->payloadSize, sei->udr))
+                if (!DeserializeSeiUserDataRegisteredSyntax(br, (uint32_t)sei->payloadSize, sei->udr))
                 {
                     return false;
                 }
@@ -443,7 +443,7 @@ bool H264Deserialize::DeserializeSeiSyntax(H26xBinaryReader::ptr br, H264SeiSynt
             case H264SeiType::MMP_H264_SEI_USER_DATA_UNREGISTERED:
             {
                 sei->udn = std::make_shared<H264SeiUserDataUnregisteredSyntax>();
-                if (!DeserializeSeiUserDataUnregisteredSyntax(br, sei->payloadSize, sei->udn))
+                if (!DeserializeSeiUserDataUnregisteredSyntax(br, (uint32_t)sei->payloadSize, sei->udn))
                 {
                     return false;
                 }
@@ -849,7 +849,7 @@ bool H264Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
         {
             br->U(2, slice->slice_group_change_cycle);
         }
-        slice->slice_data_bit_offset = br->CurBits() - begin;
+        slice->slice_data_bit_offset = (uint16_t)(br->CurBits() - begin);
         return true;
     }
     catch (...)
@@ -1130,7 +1130,7 @@ bool H264Deserialize::DeserializeMvcVuiSyntax(H26xBinaryReader::ptr br, H264MvcV
         }
         return true;
     }
-    catch(const std::exception& e)
+    catch(const std::exception& /* e */)
     {
         return false;
     }
@@ -1270,7 +1270,7 @@ bool H264Deserialize::DeserializeNalSvcSyntax(H26xBinaryReader::ptr br, H264NalS
         br->U(1, svc->reserved_three_2bits);
         return true;
     }
-    catch(const std::exception& e)
+    catch(const std::exception& /* e */)
     {
         return false;
     }
