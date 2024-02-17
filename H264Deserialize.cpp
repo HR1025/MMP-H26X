@@ -1233,7 +1233,7 @@ bool H264Deserialize::DeserializePpsSyntax(H26xBinaryReader::ptr br, H264PpsSynt
             }
             else
             {
-                // Reference : FFmpeg 6.x
+                // Hint : When second_chroma_qp_index_offset is not present, it shall be inferred to be equal to chroma_qp_index_offset
                 pps->second_chroma_qp_index_offset = pps->chroma_qp_index_offset;
             }
         }
