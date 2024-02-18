@@ -2173,7 +2173,7 @@ bool H265Deserialize::DeserializeDeltaDltSyntax(H26xBinaryReader::ptr br, H265Pp
             br->U(pps3d->pps_bit_depth_for_depth_layers_minus8+8, dd->delta_dlt_val0);
             if (dd->max_diff > (dd->min_diff_minus1 + 1))
             {
-                uint32_t delta_val_diff_minus_min_len = std::ceil(std::log2(dd->max_diff - dd->min_diff_minus1));
+                uint32_t delta_val_diff_minus_min_len = (uint32_t)std::ceil(std::log2(dd->max_diff - dd->min_diff_minus1));
                 dd->delta_val_diff_minus_min.resize(dd->num_val_delta_dlt);
                 for (uint32_t k=1; k<dd->num_val_delta_dlt; k++)
                 {

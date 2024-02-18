@@ -1,7 +1,7 @@
 //
 // H26xBinaryReader.h
 //
-// Library: Coedec
+// Library: Codec
 // Package: H26x
 // Module:  H26x
 // 

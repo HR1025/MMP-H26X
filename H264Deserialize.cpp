@@ -110,7 +110,6 @@ bool H264Deserialize::DeserializeNalSyntax(H26xBinaryReader::ptr br, H264NalSynt
     try
     {
         uint8_t  forbidden_zero_bit = 0;
-        int64_t NumBytesInRBSP = 0;
         br->BeginNalUnit();
         br->U(1, forbidden_zero_bit);
         MPP_H26X_SYNTAXT_STRICT_CHECK(forbidden_zero_bit == 0, "[nal] forbidden_zero_bit should be 0", return false);
@@ -435,7 +434,7 @@ bool H264Deserialize::DeserializeSeiSyntax(H26xBinaryReader::ptr br, H264SeiSynt
             case H264SeiType::MMP_H264_SEI_USER_DATA_REGISTERED_ITU_T_T35:
             {
                 sei->udr = std::make_shared<H264SeiUserDataRegisteredSyntax>();
-                if (!DeserializeSeiUserDataRegisteredSyntax(br, sei->payloadSize, sei->udr))
+                if (!DeserializeSeiUserDataRegisteredSyntax(br, (uint32_t)sei->payloadSize, sei->udr))
                 {
                     return false;
                 }
@@ -444,7 +443,7 @@ bool H264Deserialize::DeserializeSeiSyntax(H26xBinaryReader::ptr br, H264SeiSynt
             case H264SeiType::MMP_H264_SEI_USER_DATA_UNREGISTERED:
             {
                 sei->udn = std::make_shared<H264SeiUserDataUnregisteredSyntax>();
-                if (!DeserializeSeiUserDataUnregisteredSyntax(br, sei->payloadSize, sei->udn))
+                if (!DeserializeSeiUserDataUnregisteredSyntax(br, (uint32_t)sei->payloadSize, sei->udn))
                 {
                     return false;
                 }
@@ -605,6 +604,32 @@ bool H264Deserialize::DeserializeSpsSyntax(H26xBinaryReader::ptr br, H264SpsSynt
                 sps->separate_colour_plane_flag = 0;
                 sps->bit_depth_luma_minus8 = 0;
                 sps->bit_depth_chroma_minus8 = 0;
+                // (7-8)
+                // Flat_4x4_16[ k ] = 16, with k = 0..15
+                {
+                    sps->ScalingList4x4.resize(6); /* 0..5 */
+                    for (size_t i=0; i<6; i++)
+                    {
+                        sps->ScalingList4x4[i].resize(16);
+                        for (size_t j=0; j<16; j++)
+                        {
+                            sps->ScalingList4x4[i][j] = 16;
+                        }
+                    }
+                }
+                // (7-9)
+                // Flat_8x8_16[ k ] = 16, with k = 0..63
+                {
+                    sps->ScalingList8x8.resize(6); /* 6..11 */
+                    for (size_t i=0; i<2; i++)
+                    {
+                        sps->ScalingList8x8[i].resize(64);
+                        for (size_t j=0; j<64; j++)
+                        {
+                            sps->ScalingList8x8[i][j] = 16;
+                        }
+                    }
+                }
             }
         }
         br->UE(sps->log2_max_frame_num_minus4);
@@ -630,7 +655,7 @@ bool H264Deserialize::DeserializeSpsSyntax(H26xBinaryReader::ptr br, H264SpsSynt
             br->SE(sps->offset_for_top_to_bottom_field);
             br->UE(sps->num_ref_frames_in_pic_order_cnt_cycle);
             sps->offset_for_ref_frame.resize(sps->num_ref_frames_in_pic_order_cnt_cycle + 1);
-            for (int32_t i=0; i<sps->num_ref_frames_in_pic_order_cnt_cycle; i++)
+            for (uint32_t i=0; i<sps->num_ref_frames_in_pic_order_cnt_cycle; i++)
             {
                 br->SE(sps->offset_for_ref_frame[i]);
             }
@@ -755,6 +780,11 @@ bool H264Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
                     br->UE(slice->num_ref_idx_l1_active_minus1);
                 }
             }
+            else /* if (slice->num_ref_idx_active_override_flag == 0) */
+            {
+                slice->num_ref_idx_l0_active_minus1 = pps->num_ref_idx_l0_default_active_minus1;
+                slice->num_ref_idx_l1_active_minus1 = pps->num_ref_idx_l1_default_active_minus1;
+            }
         }
         if (nal->nal_unit_type == 20 /* MMP_H264_NALU_TYPE_SLC_EXT */ || nal->nal_unit_type == 21)
         {
@@ -819,7 +849,7 @@ bool H264Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
         {
             br->U(2, slice->slice_group_change_cycle);
         }
-        slice->slice_data_bit_offset = br->CurBits() - begin;
+        slice->slice_data_bit_offset = (uint16_t)(br->CurBits() - begin);
         return true;
     }
     catch (...)
@@ -959,7 +989,7 @@ bool H264Deserialize::DeserializeSpsMvcSyntax(H26xBinaryReader::ptr br, H264SpsM
     {
         br->UE(mvc->num_views_minus1);
         mvc->view_id.resize(mvc->num_views_minus1 + 1);
-        for (int32_t i=0; i<=mvc->num_views_minus1; i++)
+        for (uint32_t i=0; i<=mvc->num_views_minus1; i++)
         {
             br->UE(mvc->view_id[i]);
         }
@@ -967,11 +997,11 @@ bool H264Deserialize::DeserializeSpsMvcSyntax(H26xBinaryReader::ptr br, H264SpsM
         mvc->anchor_ref_l0.resize(mvc->num_views_minus1 + 1);
         mvc->num_anchor_refs_l1.resize(mvc->num_views_minus1 + 1);
         mvc->anchor_ref_l1.resize(mvc->num_views_minus1 + 1);
-        for (int32_t i=1; i<=mvc->num_views_minus1; i++)
+        for (uint32_t i=1; i<=mvc->num_views_minus1; i++)
         {
             br->UE(mvc->num_anchor_refs_l0[i]);
             mvc->anchor_ref_l0[i].resize(mvc->num_anchor_refs_l0[i] + 1);
-            for (int32_t j=0; j<mvc->num_anchor_refs_l0[i]; j++)
+            for (uint32_t j=0; j<mvc->num_anchor_refs_l0[i]; j++)
             {
                 br->UE(mvc->anchor_ref_l0[i][j]);
             }
@@ -986,11 +1016,11 @@ bool H264Deserialize::DeserializeSpsMvcSyntax(H26xBinaryReader::ptr br, H264SpsM
         mvc->non_anchor_ref_l0.resize(mvc->num_views_minus1 + 1);
         mvc->num_non_anchor_refs_l1.resize(mvc->num_views_minus1 + 1);
         mvc->non_anchor_ref_l1.resize(mvc->num_views_minus1 + 1);
-        for (int i=0; i<=mvc->num_views_minus1; i++)
+        for (uint32_t i=0; i<=mvc->num_views_minus1; i++)
         {
             br->UE(mvc->num_non_anchor_refs_l0[i]);
             mvc->non_anchor_ref_l0[i].resize(mvc->num_non_anchor_refs_l0[i] + 1);
-            for (int32_t j=0; j<mvc->num_non_anchor_refs_l0[i]; j++)
+            for (uint32_t j=0; j<mvc->num_non_anchor_refs_l0[i]; j++)
             {
                 br->UE(mvc->non_anchor_ref_l0[i][j]);
             }
@@ -1008,7 +1038,7 @@ bool H264Deserialize::DeserializeSpsMvcSyntax(H26xBinaryReader::ptr br, H264SpsM
         mvc->applicable_op_num_target_views_minus1.resize(mvc->num_level_values_signalled_minus1 + 1);
         mvc->applicable_op_target_view_id.resize(mvc->num_level_values_signalled_minus1 + 1);
         mvc->applicable_op_num_views_minus1.resize(mvc->num_level_values_signalled_minus1 + 1);
-        for (int32_t i=0; i<=mvc->num_level_values_signalled_minus1; i++)
+        for (uint32_t i=0; i<=mvc->num_level_values_signalled_minus1; i++)
         {
             br->U(8, mvc->level_idc[i]);
             br->UE(mvc->num_applicable_ops_minus1[i]);
@@ -1016,12 +1046,12 @@ bool H264Deserialize::DeserializeSpsMvcSyntax(H26xBinaryReader::ptr br, H264SpsM
             mvc->applicable_op_num_target_views_minus1[i].resize(mvc->num_applicable_ops_minus1[i] + 1);
             mvc->applicable_op_target_view_id[i].resize(mvc->num_applicable_ops_minus1[i] + 1);
             mvc->applicable_op_num_views_minus1[i].resize(mvc->num_applicable_ops_minus1[i] + 1);
-            for (int32_t j=0; j<=mvc->num_applicable_ops_minus1[i]; j++)
+            for (uint32_t j=0; j<=mvc->num_applicable_ops_minus1[i]; j++)
             {
                 br->U(3, mvc->applicable_op_temporal_id[i][j]);
                 br->UE(mvc->applicable_op_num_target_views_minus1[i][j]);
                 mvc->applicable_op_target_view_id[i][j].resize(mvc->applicable_op_num_target_views_minus1[i][j] + 1);
-                for (int32_t k=0; k<=mvc->applicable_op_num_target_views_minus1[i][j]; k++)
+                for (uint32_t k=0; k<=mvc->applicable_op_num_target_views_minus1[i][j]; k++)
                 {
                     br->UE(mvc->applicable_op_target_view_id[i][j][k]);
                 }
@@ -1056,12 +1086,12 @@ bool H264Deserialize::DeserializeMvcVuiSyntax(H26xBinaryReader::ptr br, H264MvcV
         mvcVui->vclHrds.resize(mvcVui->vui_mvc_num_ops_minus1 + 1);
         mvcVui->vui_mvc_low_delay_hrd_flag.resize(mvcVui->vui_mvc_num_ops_minus1 + 1);
         mvcVui->vui_mvc_pic_struct_present_flag.resize(mvcVui->vui_mvc_num_ops_minus1 + 1);
-        for (int32_t i=0; i<=mvcVui->vui_mvc_num_ops_minus1; i++)
+        for (uint32_t i=0; i<=mvcVui->vui_mvc_num_ops_minus1; i++)
         {
             br->U(3, mvcVui->vui_mvc_temporal_id[i]);
             br->UE(mvcVui->vui_mvc_num_target_output_views_minus1[i]);
             mvcVui->vui_mvc_view_id[i].resize(mvcVui->vui_mvc_num_target_output_views_minus1[i] + 1);
-            for (int32_t j=0; j<=mvcVui->vui_mvc_num_target_output_views_minus1[i]; j++)
+            for (uint32_t j=0; j<=mvcVui->vui_mvc_num_target_output_views_minus1[i]; j++)
             {
                 br->UE(mvcVui->vui_mvc_view_id[i][j]);
             }
@@ -1100,7 +1130,7 @@ bool H264Deserialize::DeserializeMvcVuiSyntax(H26xBinaryReader::ptr br, H264MvcV
         }
         return true;
     }
-    catch(const std::exception& e)
+    catch(const std::exception& /* e */)
     {
         return false;
     }
@@ -1203,36 +1233,14 @@ bool H264Deserialize::DeserializePpsSyntax(H26xBinaryReader::ptr br, H264PpsSynt
             }
             else
             {
-                // Reference : FFmpeg 6.x
+                // Hint : When second_chroma_qp_index_offset is not present, it shall be inferred to be equal to chroma_qp_index_offset
                 pps->second_chroma_qp_index_offset = pps->chroma_qp_index_offset;
             }
         }
-        else
+        if (!pps->pic_scaling_matrix_present_flag)
         {
-            // (7-8)
-            {
-                pps->ScalingList4x4.resize(6);
-                for (size_t i=0; i<6; i++)
-                {
-                    pps->ScalingList4x4[i].resize(16);
-                    for (size_t j=0; j<16; j++)
-                    {
-                        pps->ScalingList4x4[i][j] = 16;
-                    }
-                }
-            }
-            // (7-9)
-            {
-                pps->ScalingList8x8.resize(2);
-                for (size_t i=0; i<2; i++)
-                {
-                    pps->ScalingList8x8[i].resize(64);
-                    for (size_t j=0; j<64; j++)
-                    {
-                        pps->ScalingList8x8[i][j] = 16;
-                    }
-                }
-            }
+            pps->ScalingList4x4 = sps->ScalingList4x4;
+            pps->ScalingList8x8 = sps->ScalingList8x8;
         }
         br->rbsp_trailing_bits();
         _contex->ppsSet[pps->pic_parameter_set_id] = pps;
@@ -1262,7 +1270,7 @@ bool H264Deserialize::DeserializeNalSvcSyntax(H26xBinaryReader::ptr br, H264NalS
         br->U(1, svc->reserved_three_2bits);
         return true;
     }
-    catch(const std::exception& e)
+    catch(const std::exception& /* e */)
     {
         return false;
     }
@@ -1354,11 +1362,15 @@ bool H264Deserialize::DeserializeReferencePictureListModificationSyntax(H26xBina
                         modification_of_pic_nums_idc == 1
                     )
                     {
-                        br->UE(rplm->abs_diff_pic_num_minus1);
+                        H264ReferencePictureListModificationSyntax::modification_of_pic_nums_idcs_data modification_of_pic_nums_idcs_data;
+                        br->UE(modification_of_pic_nums_idcs_data.abs_diff_pic_num_minus1);
+                        rplm->modification_of_pic_nums_idcs_datas.push_back(modification_of_pic_nums_idcs_data);
                     }
                     else if (modification_of_pic_nums_idc == 2)
                     {
-                        br->UE(rplm->long_term_pic_num);
+                        H264ReferencePictureListModificationSyntax::modification_of_pic_nums_idcs_data modification_of_pic_nums_idcs_data;
+                        br->UE(modification_of_pic_nums_idcs_data.long_term_pic_num);
+                        rplm->modification_of_pic_nums_idcs_datas.push_back(modification_of_pic_nums_idcs_data);
                     }
                     rplm->modification_of_pic_nums_idcs.push_back(modification_of_pic_nums_idc);
                 } while(modification_of_pic_nums_idc != 3);
@@ -1377,11 +1389,15 @@ bool H264Deserialize::DeserializeReferencePictureListModificationSyntax(H26xBina
                         modification_of_pic_nums_idc == 1
                     )
                     {
-                        br->UE(rplm->abs_diff_pic_num_minus1);
+                        H264ReferencePictureListModificationSyntax::modification_of_pic_nums_idcs_data modification_of_pic_nums_idcs_data;
+                        br->UE(modification_of_pic_nums_idcs_data.abs_diff_pic_num_minus1);
+                        rplm->modification_of_pic_nums_idcs_datas.push_back(modification_of_pic_nums_idcs_data);
                     }
                     else if (modification_of_pic_nums_idc == 2)
                     {
-                        br->UE(rplm->long_term_pic_num);
+                        H264ReferencePictureListModificationSyntax::modification_of_pic_nums_idcs_data modification_of_pic_nums_idcs_data;
+                        br->UE(modification_of_pic_nums_idcs_data.long_term_pic_num);
+                        rplm->modification_of_pic_nums_idcs_datas.push_back(modification_of_pic_nums_idcs_data);
                     }
                     rplm->modification_of_pic_nums_idcs.push_back(modification_of_pic_nums_idc);
                 } while(modification_of_pic_nums_idc != 3);

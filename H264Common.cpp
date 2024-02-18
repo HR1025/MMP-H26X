@@ -242,8 +242,6 @@ H264MvcVuiSyntax::H264MvcVuiSyntax()
 H264ReferencePictureListModificationSyntax::H264ReferencePictureListModificationSyntax()
 {
     ref_pic_list_modification_flag_l0 = 0;
-    abs_diff_pic_num_minus1 = 0;
-    long_term_pic_num = 0;
     ref_pic_list_modification_flag_l1 = 0;
 }
 
@@ -368,13 +366,6 @@ H264NalSyntax::H264NalSyntax()
     svc_extension_flag = 0;
     avc_3d_extension_flag = 0;
     emulation_prevention_three_byte = 0;
-}
-
-H264PictureContext::H264PictureContext()
-{
-    id = 0;
-    TopFieldOrderCnt = INT32_MAX;
-    BottomFieldOrderCnt = INT32_MAX;
 }
 
 } // namespace Codec

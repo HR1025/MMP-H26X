@@ -1,7 +1,7 @@
 //
 // H264Common.h
 //
-// Library: Coedec
+// Library: Codec
 // Package: H264
 // Module:  H264
 // 
@@ -679,10 +679,14 @@ public:
     ~H264ReferencePictureListModificationSyntax() = default;
 public:
     uint8_t   ref_pic_list_modification_flag_l0;
-    uint32_t  abs_diff_pic_num_minus1;
-    uint32_t  long_term_pic_num;
     uint8_t   ref_pic_list_modification_flag_l1;
     std::vector<uint32_t> modification_of_pic_nums_idcs;
+    union modification_of_pic_nums_idcs_data
+    {
+        uint32_t  abs_diff_pic_num_minus1;
+        uint32_t  long_term_pic_num;
+    };
+    std::vector<modification_of_pic_nums_idcs_data> modification_of_pic_nums_idcs_datas;
 };
 
 /**
@@ -971,45 +975,6 @@ public:
     bool    used_for_long_term_reference;
     int8_t  MaxLongTermFrameIdx;
     int8_t  LongTermFrameIdx;
-};
-
-class H264PictureContext
-{
-public:
-    using ptr = std::shared_ptr<H264PictureContext>;
-public:
-    using cache = std::vector<H264PictureContext::ptr>;
-public:
-    H264PictureContext();
-    ~H264PictureContext() = default;
-public:
-    static constexpr uint64_t unused_for_reference = 0;
-    static constexpr uint64_t used_for_short_term_reference = 1 << 0U;
-    static constexpr uint64_t used_for_long_term_reference = 1 << 1U;
-    static constexpr uint64_t non_existing = 1 << 2U;
-public:
-    uint64_t id;
-public: /* inherit from nal unit */
-    uint8_t   field_pic_flag;
-    uint8_t   bottom_field_flag;
-    uint8_t   pic_order_cnt_lsb;
-    uint32_t  long_term_frame_idx;
-    std::set<uint32_t> memory_management_control_operations;
-public: /* 8.2.1 Decoding process for picture order count */
-    int32_t  TopFieldOrderCnt;
-    int32_t  BottomFieldOrderCnt;
-    int32_t  prevPicOrderCntMsb;
-    int64_t  FrameNumOffset;
-public: /* 8.2.4 Decoding process for reference picture lists construction */
-    uint64_t MaxFrameNum;
-    uint64_t FrameNum;
-    uint64_t FrameNumWrap;
-    uint64_t PicNum;
-public: /* 8.2.5 Decoded reference picture marking process */
-    uint64_t referenceFlag;
-    int64_t  MaxLongTermFrameIdx;
-    int64_t  LongTermFrameIdx;
-    uint32_t LongTermPicNum;
 };
 
 } // namespace Codec

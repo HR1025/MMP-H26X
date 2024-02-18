@@ -72,7 +72,7 @@ void H26xBinaryReader::UE(uint32_t& value)
         assert(b == 0 || b == 1);
     }
     U(leadingZeroBits, tmp);
-    value = (1 << leadingZeroBits) - 1 + tmp;
+    value = (uint32_t)((1 << leadingZeroBits) - 1 + tmp);
 }
 
 void H26xBinaryReader::SE(int32_t& value)
@@ -95,8 +95,8 @@ void H26xBinaryReader::SE(int32_t& value)
                                                 do\
                                                 {\
                                                     ReadOneByteAuto();\
-                                                    size_t readBits = bits <= (8 - _curBitPos)? bits : (8 - _curBitPos);\
-                                                    bits = bits - readBits;\
+                                                    size_t readBits = (size_t)bits <= (8 - (size_t)_curBitPos)? bits : (8 - (size_t)_curBitPos);\
+                                                    bits = (size_t)(bits - readBits);\
                                                     value <<= readBits;\
                                                     if (readBits < 8 && !firstFlag)\
                                                     {\
@@ -228,7 +228,7 @@ void H26xBinaryReader::Skip(size_t bits)
 {
     if (bits + _curBitPos < 8) // 不需要跳转至下一个字节
     {
-        _curBitPos = bits + _curBitPos;
+        _curBitPos = uint8_t(bits + _curBitPos);
         return;
     }
     else // 需要跳转的 bits 先用消费当前 byte 剩余的 bits
@@ -327,22 +327,30 @@ bool H26xBinaryReader::more_rbsp_data()
             }
             catch (...)
             {
-                // Hint : nothing to do
+                // Hint : 剩余长度不足 3 时可以进入此异常
+                _rbspEndByte = _reader->Tell();
             }
         }
         // 2 - 移除 rbsp_trailing_bits() 后的几个 zero byte (,如果存在的话)
         {
-            
-            uint8_t zeroByte = 0;
-            do
+            try
             {
-                U(8, zeroByte, true);
-                if (zeroByte == 0)
+                uint8_t zeroByte = 0;
+                do
                 {
-                    _reader->Seek(_reader->Tell() - 1);
-                    _rbspEndByte = _reader->Tell();
-                }
-            } while (zeroByte == 0);            
+                    U(8, zeroByte, true);
+                    if (zeroByte == 0)
+                    {
+                        _reader->Seek(_reader->Tell() - 1);
+                        _rbspEndByte = _reader->Tell();
+                    }
+                } while (zeroByte == 0);   
+            }
+            catch (...)
+            {
+                // Hint : 无可读数据进入此异常
+                // nothing to do
+            }
         }
         _reader->Seek(curPosByte);
         if (curBitPos != 8)
@@ -424,7 +432,14 @@ void H26xBinaryReader::ReadOneByteAuto(bool force)
             ReadBytes(1, &_curValue);
             _zeroCount = 0;
         }
-        _zeroCount = _curValue == 0 ? ++_zeroCount % 3 : 0;
+        if (_curValue == 0)
+        {
+            _zeroCount = (_zeroCount + 1) % 3;
+        }
+        else
+        {
+            _zeroCount = 0;
+        }
         _curBitPos = 0;
     }
 }

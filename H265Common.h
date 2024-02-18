@@ -1,7 +1,7 @@
 //
 // H265Common.h
 //
-// Library: Coedec
+// Library: Codec
 // Package: H265
 // Module:  H265
 // 
