@@ -625,7 +625,7 @@ void H264SliceDecodingProcess::DecodingProcessForPictureNumbers(H264SliceHeaderS
             {
                 if (_picture->FrameNum > slice->frame_num)
                 {
-                    _picture->FrameNumWrap = _picture->FrameNum - MaxFrameNum;
+                    _picture->FrameNumWrap = (int32_t)_picture->FrameNum - (int32_t)MaxFrameNum;
                 }
                 else
                 {
