@@ -11,6 +11,8 @@
 #include <iostream>
 #include <cassert>
 
+#include "H264Common.h"
+
 #ifdef MMP_H26x_EXTERN_HEADER
 #include MMP_H26x_EXTERN_HEADER
 #endif /* MMP_H26x_EXTERN_HEADER */
@@ -58,6 +60,8 @@ namespace Codec
 std::string H264NaluTypeToStr(uint8_t nal_unit_type);
 
 std::string H264SliceTypeToStr(uint8_t slice_type);
+
+void FillH264SpsContext(H264SpsSyntax::ptr sps);
 
 
 } // namespace Codec

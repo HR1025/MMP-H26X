@@ -762,6 +762,35 @@ public:
 };
 
 /**
+ * @sa ISO 14496/10(2020) - 7.4.2 Raw byte sequence payloads and RBSP trailing bits semantics 
+ */
+class H264SpsContext
+{
+public:
+    using ptr = std::shared_ptr<H264SpsContext>;
+public:
+    H264SpsContext();
+    ~H264SpsContext() = default;
+public:
+    uint32_t BitDepthY;                        // (7-3)
+    uint32_t QpBdOffsetY;                      // (7-4)
+    uint32_t BitDepthC;                        // (7-5)
+    uint32_t QpBdOffsetC;                      // (7-6)
+    uint32_t RawMbBits;                        // (7-7)
+    uint32_t MaxFrameNum;                      // (7-10)
+    uint32_t MaxPicOrderCntLsb;                // (7-11)
+    int64_t  ExpectedDeltaPerPicOrderCntCycle; // (7-12)
+    uint32_t PicWidthInMbs;                    // (7-13)
+    uint32_t PicWidthInSamplesL;               // (7-14)
+    uint32_t PicWidthInSamplesC;               // (7-15)
+    uint32_t PicHeightInMapUnits;              // (7-16)
+    uint32_t PicSizeInMapUnits;                // (7-17)
+    uint32_t FrameHeightInMbs;                 // (7-18)
+    int32_t  CropUnitX;                        // (7-19) , (7-21)
+    int32_t  CropUnitY;                        // (7-20) , (7-22)
+};
+
+/**
  * @sa  ISO 14496/10(2020) - 7.3.2 Raw byte sequence payloads and RBSP trailing bits syntax
  */ 
 class H264SpsSyntax
@@ -814,6 +843,7 @@ public:
     uint32_t   frame_crop_bottom_offset;
     uint8_t    vui_parameters_present_flag;
     H264VuiSyntax::ptr vui_seq_parameters;
+    H264SpsContext::ptr context;
 };
 
 /**

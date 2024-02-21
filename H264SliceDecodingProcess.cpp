@@ -9,9 +9,6 @@
 
 #include "H26xUltis.h"
 
-/**
- * @todo 优化某些查询方式 
- */
 namespace Mmp
 {
 namespace Codec
@@ -371,7 +368,7 @@ void H264SliceDecodingProcess::DecodeH264PictureOrderCountType0(H264PictureConte
     }
     // determine PicOrderCntMsb (8-3)
     {
-        uint32_t MaxPicOrderCntLsb = 1 << (sps->log2_max_pic_order_cnt_lsb_minus4 + 4); // (7-11)
+        uint32_t MaxPicOrderCntLsb = sps->context->MaxPicOrderCntLsb;
         if ((slice->pic_order_cnt_lsb < prevPicOrderCntLsb) &&
             ((prevPicOrderCntLsb - slice->pic_order_cnt_lsb) >= (MaxPicOrderCntLsb / 2))
         )
@@ -445,7 +442,7 @@ void H264SliceDecodingProcess::DecodeH264PictureOrderCountType1(H264PictureConte
         }
         else if (prevFrameNum > slice->frame_num)
         {
-            uint32_t MaxFrameNum = 1 << (sps->log2_max_frame_num_minus4 + 4); // (7-10)
+            uint32_t MaxFrameNum = sps->context->MaxFrameNum;
             picture->FrameNumOffset = prevFrameNumOffset + MaxFrameNum;
         }
         else
@@ -480,13 +477,7 @@ void H264SliceDecodingProcess::DecodeH264PictureOrderCountType1(H264PictureConte
     {
         if (absFrameNum > 0)
         {
-            int64_t ExpectedDeltaPerPicOrderCntCycle = 0; // (7-12)
-            {
-                for (uint32_t i=0; i<sps->num_ref_frames_in_pic_order_cnt_cycle; i++)
-                {
-                    ExpectedDeltaPerPicOrderCntCycle += sps->offset_for_ref_frame[i];
-                }
-            }
+            int64_t ExpectedDeltaPerPicOrderCntCycle = sps->context->ExpectedDeltaPerPicOrderCntCycle; 
             expectedPicOrderCnt = picOrderCntCycleCnt * ExpectedDeltaPerPicOrderCntCycle;
             for (int64_t i=0; i<=frameNumInPicOrderCntCycle; i++)
             {
@@ -550,7 +541,7 @@ void H264SliceDecodingProcess::DecodeH264PictureOrderCountType2(H264PictureConte
         }
         else if (prevFrameNumOffset > slice->frame_num)
         {
-            uint32_t MaxFrameNum = 1 << (sps->log2_max_frame_num_minus4 + 4); // (7-10)
+            uint32_t MaxFrameNum = sps->context->MaxFrameNum;
             FrameNumOffset = prevFrameNumOffset + MaxFrameNum;
         }
         else
@@ -618,7 +609,7 @@ void H264SliceDecodingProcess::DecodingProcessForPictureNumbers(H264SliceHeaderS
 {
     // determine FrameNumWrap (8-27)
     {
-        uint32_t MaxFrameNum = 1 << (sps->log2_max_frame_num_minus4 + 4); // (7-10)
+        uint32_t MaxFrameNum = sps->context->MaxFrameNum;
         for (auto _picture : pictures)
         {
             if (_picture->referenceFlag & H264PictureContext::used_for_short_term_reference)
@@ -973,7 +964,7 @@ void H264SliceDecodingProcess::ModificationProcessForReferencePictureLists(H264S
     // - If field_pic_flag is equal to 0, MaxPicNum is set equal to MaxFrameNum.
     // - Otherwise (field_pic_flag is equal to 1), MaxPicNum is set equal to 2*MaxFrameNum.
     {
-        uint32_t MaxFrameNum = 1 << (sps->log2_max_frame_num_minus4 + 4); // (7-10)
+        uint32_t MaxFrameNum = sps->context->MaxFrameNum;
         if (slice->field_pic_flag == 0)
         {
             MaxPicNum = MaxFrameNum;
@@ -1273,7 +1264,7 @@ void H264SliceDecodingProcess::SequenceOfOperationsForDecodedReferencePictureMar
 void H264SliceDecodingProcess::DecodingProcessForGapsInFrameNum(H264SliceHeaderSyntax::ptr slice, H264SpsSyntax::ptr sps, H264PictureContext::ptr picture, uint64_t PrevRefFrameNum)
 {
 
-    uint32_t MaxFrameNum = 1 << (sps->log2_max_frame_num_minus4 + 4); // (7-10)
+    uint32_t MaxFrameNum = sps->context->MaxFrameNum;
     if (!(slice->frame_num != PrevRefFrameNum && slice->frame_num != (PrevRefFrameNum + 1) % MaxFrameNum))
     {
         return;

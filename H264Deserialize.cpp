@@ -689,6 +689,7 @@ bool H264Deserialize::DeserializeSpsSyntax(H26xBinaryReader::ptr br, H264SpsSynt
             }
         }
         br->rbsp_trailing_bits();
+        FillH264SpsContext(sps);
         _contex->spsSet[sps->seq_parameter_set_id] = sps;
         _contex->sps = sps;
         return true;
