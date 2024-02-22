@@ -93,8 +93,6 @@ public:
     std::vector<uint8_t>  used_by_curr_pic_s0_flag;
     std::vector<uint32_t> delta_poc_s1_minus1;
     std::vector<uint8_t>  used_by_curr_pic_s1_flag;
-public:
-    uint32_t NumDeltaPocs;
 };
 
 /**
@@ -419,8 +417,8 @@ public:
     uint8_t   video_full_range_flag;
     uint8_t   colour_description_present_flag;
     uint8_t   colour_primaries;
-    uint8_t   transfer_characteristics;
-    uint8_t   matrix_coeffs;
+    uint8_t   transfer_characteristics; /* Table E.3 – Colour primaries interpretation using the colour_primaries syntax element */
+    uint8_t   matrix_coeffs; /* Table E.5 – Matrix coefficients interpretation using the matrix_coeffs syntax element */
     uint8_t   chroma_loc_info_present_flag;
     uint32_t  chroma_sample_loc_type_top_field;
     uint32_t  chroma_sample_loc_type_bottom_field;
@@ -558,6 +556,46 @@ public:
 };
 
 /**
+ * @sa ITU-T H.265 (2021) - 7.4.3.2 Sequence parameter set RBSP semantics
+ */
+class H265SpsContext
+{
+public:
+    using ptr = std::shared_ptr<H265SpsContext>;
+public:
+    H265SpsContext();
+    ~H265SpsContext() = default;
+public:
+    uint32_t BitDepthY;         // (7-4)
+    uint32_t QpBdOffsetY;       // (7-5)
+    uint32_t BitDepthC;         // (7-6)
+    uint32_t QpBdOffsetC;       // (7-7)
+public:
+    uint32_t MaxPicOrderCntLsb;                 // (7-8)
+    std::vector<int32_t> SpsMaxLatencyPictures; // (7-9)
+public:
+    uint32_t MinCbLog2SizeY;      // (7-10)
+    uint32_t CtbLog2SizeY;        // (7-11)
+    uint32_t MinCbSizeY;          // (7-12)
+    uint32_t CtbSizeY;            // (7-13)
+    uint32_t PicWidthInMinCbsY;   // (7-14)
+    uint32_t PicWidthInCtbsY;     // (7-15)
+    uint32_t PicHeightInMinCbsY;  // (7-16)
+    uint32_t PicHeightInCtbsY;    // (7-17)
+    uint32_t PicSizeInMinCbsY;    // (7-18)
+    uint32_t PicSizeInCtbsY;      // (7-19)
+    uint32_t PicSizeInSamplesY;   // (7-20)
+    uint32_t PicWidthInSamplesC;  // (7-21)
+    uint32_t PicHeightInSamplesC; // (7-22)
+public:
+    uint32_t CtbWidthC;  // (7-23)
+    uint32_t CtbHeightC; // (7-24)
+public:
+    uint32_t PcmBitDepthY; // (7-25)
+    uint32_t PcmBitDepthC; // (7-26)
+};
+
+/**
  * @sa ITU-T H.265 (2021) - 7.3.2.2.1 General sequence parameter set RBSP syntax
  */
 class H265SpsSyntax
@@ -626,6 +664,8 @@ public:
     H265Sps3DSyntax::ptr sps3d;
     H265SpsSccSyntax::ptr spsScc;
     uint8_t  sps_extension_data_flag;
+public:
+    H265SpsContext::ptr context;
 };
 
 /**
@@ -788,7 +828,7 @@ public:
     uint8_t  dependent_slice_segment_flag;
     uint32_t slice_segment_address;
     std::vector<uint8_t>  slice_reserved_flag;
-    uint32_t slice_type;
+    uint32_t slice_type; /* Table 7-7 – Name association to slice_type */
     uint8_t  pic_output_flag;
     uint8_t  colour_plane_id;
     uint32_t slice_pic_order_cnt_lsb;
@@ -985,6 +1025,17 @@ public:
     std::unordered_map<int32_t, H265VPSSyntax::ptr> vpsSet;
     std::unordered_map<int32_t, H265SpsSyntax::ptr> spsSet;
     std::unordered_map<int32_t, H265PpsSyntax::ptr> ppsSet;
+public:
+    std::unordered_map<uint32_t, uint32_t> NumNegativePics;
+    std::unordered_map<uint32_t, uint32_t> NumPositivePics;
+    std::unordered_map<uint32_t, std::unordered_map<uint32_t, uint8_t>> UsedByCurrPicS0;
+    std::unordered_map<uint32_t, std::unordered_map<uint32_t, uint8_t>> UsedByCurrPicS1;
+    std::unordered_map<uint32_t, std::unordered_map<uint32_t, int32_t>> DeltaPocS0;
+    std::unordered_map<uint32_t, std::unordered_map<uint32_t, int32_t>> DeltaPocS1;
+    std::unordered_map<uint32_t, uint32_t> NumDeltaPocs;
+public:
+    std::unordered_map<uint32_t, uint32_t> PocLsbLt;
+    std::unordered_map<uint32_t, uint8_t>  UsedByCurrPicLt;
 };
 
 } // namespace Codec

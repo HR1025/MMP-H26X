@@ -40,7 +40,7 @@ public:
     bool DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H265NalUnitHeaderSyntax::ptr nal, H265SliceHeaderSyntax::ptr slice);
 private: /* pps */
     bool DeserializePps3dSyntax(H26xBinaryReader::ptr br, H265PpsSyntax::ptr pps, H265Pps3dSyntax::ptr pps3d);
-    bool DeserializePpsRangeSyntax(H26xBinaryReader::ptr br, H265PpsSyntax::ptr pps, H265PpsRangeSyntax::ptr ppsRange);
+    bool DeserializePpsRangeSyntax(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265PpsSyntax::ptr pps, H265PpsRangeSyntax::ptr ppsRange);
     bool DeserializePpsSccSyntax(H26xBinaryReader::ptr br, H265PpsSccSyntax::ptr ppsScc);
 private: /* sps */
     bool DeserializeSpsRangeSyntax(H26xBinaryReader::ptr br, H265SpsRangeSyntax::ptr spsRange);
@@ -48,7 +48,7 @@ private: /* sps */
     bool DeserializeSpsSccSyntax(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265SpsSccSyntax::ptr spsScc);
     bool DeserializeVuiSyntax(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265VuiSyntax::ptr vui);
 private: /* slice */
-    bool DeserializeRefPicListsModificationSyntax(H26xBinaryReader::ptr br, H265SliceHeaderSyntax::ptr slice, H265RefPicListsModificationSyntax::ptr rplm);
+    bool DeserializeRefPicListsModificationSyntax(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265PpsSyntax::ptr pps, H265SliceHeaderSyntax::ptr slice, H265RefPicListsModificationSyntax::ptr rplm);
     bool DeserializePredWeightTableSyntax(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265SliceHeaderSyntax::ptr slice, H265PredWeightTableSyntax::ptr pwt);
 private: /* sei */
     bool DeserializeSeiDecodedPictureHash(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265SeiDecodedPictureHashSyntax::ptr dph);

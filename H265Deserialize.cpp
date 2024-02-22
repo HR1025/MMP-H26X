@@ -14,6 +14,50 @@ namespace Mmp
 namespace Codec
 {
 
+static uint32_t GetCurrRpsIdx(H265SpsSyntax::ptr sps, H265SliceHeaderSyntax::ptr slice)
+{
+    return slice->short_term_ref_pic_set_sps_flag == 1 ? slice->short_term_ref_pic_set_idx : sps->num_short_term_ref_pic_sets;
+}
+
+static uint32_t GetNumPicTotalCurr(uint32_t CurrRpsIdx, H265SpsSyntax::ptr sps, H265PpsSyntax::ptr pps, H265SliceHeaderSyntax::ptr slice, H265ContextSyntax::ptr context) // (7-57)
+{
+    uint32_t NumPicTotalCurr = 0;
+    {
+        uint32_t NumNegativePic = context->NumNegativePics[CurrRpsIdx];
+        auto& UsedByCurrPicS0 = context->UsedByCurrPicS0[CurrRpsIdx];
+        for (uint32_t i=0; i<NumNegativePic; i++)
+        {
+            if (UsedByCurrPicS0[i])
+            {
+                NumPicTotalCurr++;
+            }
+        }
+    }
+    {
+        uint32_t NumPositivePic = context->NumPositivePics[CurrRpsIdx];
+        auto& UsedByCurrPicS1 = context->UsedByCurrPicS1[CurrRpsIdx];
+        for (uint32_t i=0; i<NumPositivePic; i++)
+        {
+            if (UsedByCurrPicS1[i])
+            {
+                NumPicTotalCurr++;
+            }
+        }
+    }
+    for (uint32_t i=0; i<sps->num_long_term_ref_pics_sps + slice->num_long_term_pics; i++)
+    {
+        if (context->UsedByCurrPicLt[i])
+        {
+            NumPicTotalCurr++;
+        }
+    }
+    if (pps->pps_scc_extension_flag && pps->ppsScc->pps_curr_pic_ref_enabled_flag)
+    {
+        NumPicTotalCurr++;
+    }
+    return NumPicTotalCurr;
+}
+
 H265Deserialize::H265Deserialize()
 {
     _contex = std::make_shared<H265ContextSyntax>();
@@ -249,7 +293,16 @@ bool H265Deserialize::DeserializePpsSyntax(H26xBinaryReader::ptr br, H265PpsSynt
         if (pps->tiles_enabled_flag)
         {
             br->UE(pps->num_tile_columns_minus1);
+            {
+                // Hint : num_tile_columns_minus1 plus 1 specifies the number of tile columns partitioning the picture.
+                // num_tile_columns_minus1 shall be in the range of 0 to PicWidthInCtbsY − 1, inclusive.
+                MPP_H26X_SYNTAXT_STRICT_CHECK(/* pps->num_tile_columns_minus1>=0 && */ pps->num_tile_columns_minus1<=sps->context->PicWidthInCtbsY-1, "[pps] num_tile_columns_minus1 out of range", return false);
+            }
             br->UE(pps->num_tile_rows_minus1);
+            {
+                // Hint : num_tile_rows_minus1 shall be in the range of 0 to PicHeightInCtbsY − 1, inclusive.
+                MPP_H26X_SYNTAXT_STRICT_CHECK(/* pps->num_tile_rows_minus1>=0 && */ pps->num_tile_rows_minus1<=sps->context->PicHeightInCtbsY-1, "[pps] num_tile_rows_minus1 out of range", return false);
+            }
             br->U(1, pps->uniform_spacing_flag);
             if (!pps->uniform_spacing_flag)
             {
@@ -308,7 +361,7 @@ bool H265Deserialize::DeserializePpsSyntax(H26xBinaryReader::ptr br, H265PpsSynt
         if (pps->pps_range_extension_flag)
         {
             pps->ppsRange = std::make_shared<H265PpsRangeSyntax>();
-            if (!DeserializePpsRangeSyntax(br, pps, pps->ppsRange))
+            if (!DeserializePpsRangeSyntax(br, sps, pps, pps->ppsRange))
             {
                 assert(false);
                 return false;
@@ -549,6 +602,7 @@ bool H265Deserialize::DeserializeSpsSyntax(H26xBinaryReader::ptr br, H265SpsSynt
             }
         }
         br->rbsp_trailing_bits();
+        FillH265SpsContext(sps);
         _contex->spsSet[sps->sps_seq_parameter_set_id] = sps;
         return true;
     }
@@ -567,7 +621,15 @@ bool H265Deserialize::DeserializeVPSSyntax(H26xBinaryReader::ptr br, H265VPSSynt
         br->U(1, vps->vps_base_layer_internal_flag);
         br->U(1, vps->vps_base_layer_available_flag);
         br->U(6, vps->vps_max_layers_minus1);
+        {
+            // Hint : vps_max_layers_minus1 shall be less than 63 in bitstreams conforming to this version of this Specification.
+            MPP_H26X_SYNTAXT_STRICT_CHECK(vps->vps_max_layers_minus1 <= 63, "[vps] vps_max_layers_minus1 out of range", return false);
+        }
         br->U(3, vps->vps_max_sub_layers_minus1);
+        {
+            // Hint : The value of vps_max_sub_layers_minus1 shall be in the range of 0 to 6, inclusive.
+            MPP_H26X_SYNTAXT_STRICT_CHECK(/* vps->vps_max_sub_layers_minus1 >= 0 && */ vps->vps_max_sub_layers_minus1 <= 6, "[vps] vps_max_sub_layers_minus1 out of range", return false);
+        }
         br->U(1, vps->vps_temporal_id_nesting_flag);
         br->U(16, vps->vps_reserved_0xffff_16bits);
         MPP_H26X_SYNTAXT_STRICT_CHECK(vps->vps_reserved_0xffff_16bits==0xFFFF, "[vps] vps_reserved_0xffff_16bits is not equal to 0xffff", return false);
@@ -586,6 +648,13 @@ bool H265Deserialize::DeserializeVPSSyntax(H26xBinaryReader::ptr br, H265VPSSynt
             br->UE(vps->vps_max_dec_pic_buffering_minus1[i]);
             br->UE(vps->vps_max_num_reorder_pics[i]);
             br->UE(vps->vps_max_latency_increase_plus1[i]);
+        }
+        for (uint32_t i= 0; i<=(vps->vps_sub_layer_ordering_info_present_flag ? 0 : vps->vps_max_sub_layers_minus1); i++)
+        {
+            // Hint : vps_max_num_reorder_pics[ vps_max_sub_layers_minus1 ] and vps_max_latency_increase_plus1[ vps_max_sub_layers_minus1 ] apply to all sub-layers ...
+            vps->vps_max_dec_pic_buffering_minus1[i] = vps->vps_max_dec_pic_buffering_minus1[vps->vps_sub_layer_ordering_info_present_flag ? 0 : vps->vps_max_sub_layers_minus1];
+            vps->vps_max_num_reorder_pics[i] = vps->vps_max_num_reorder_pics[vps->vps_sub_layer_ordering_info_present_flag ? 0 : vps->vps_max_sub_layers_minus1];
+            vps->vps_max_latency_increase_plus1[i] = vps->vps_max_latency_increase_plus1[vps->vps_sub_layer_ordering_info_present_flag ? 0 : vps->vps_max_sub_layers_minus1];
         }
         br->U(6, vps->vps_max_layer_id);
         br->UE(vps->vps_num_layer_sets_minus1);
@@ -663,6 +732,10 @@ bool H265Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
             br->U(1, slice->no_output_of_prior_pics_flag);
         }
         br->UE(slice->slice_pic_parameter_set_id);
+        {
+            // Hint : The value of slice_pic_parameter_set_id shall be in the range of 0 to 63, inclusive.
+            MPP_H26X_SYNTAXT_STRICT_CHECK(/* slice->slice_pic_parameter_set_id>=0 && */ slice->slice_pic_parameter_set_id<=63, "[slice] slice_pic_parameter_set_id out of range", return false);
+        }
         if (_contex->ppsSet.count(slice->slice_pic_parameter_set_id) == 0)
         {
             assert(false);
@@ -680,10 +753,14 @@ bool H265Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
             if (pps->dependent_slice_segments_enabled_flag)
             {
                 br->U(1, slice->dependent_slice_segment_flag);
-                // TODO
+                br->U((uint32_t)std::ceil(std::log2(sps->context->PicSizeInCtbsY)), slice->slice_segment_address);
+                {
+                    // Hint : The value of slice_segment_address shall be in the range of 0 to PicSizeInCtbsY − 1, inclusive
+                    MPP_H26X_SYNTAXT_STRICT_CHECK(/* slice->slice_segment_address>=0 && */ slice->slice_segment_address<=sps->context->PicSizeInCtbsY, "[slice] slice_segment_address out of range", return false);
+                }
             }
         }
-        if (!pps->dependent_slice_segments_enabled_flag)
+        if (!slice->dependent_slice_segment_flag)
         {
             slice->slice_reserved_flag.resize(pps->num_extra_slice_header_bits);
             for (uint32_t i=0; i<pps->num_extra_slice_header_bits; i++)
@@ -694,6 +771,11 @@ bool H265Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
             if (pps->output_flag_present_flag)
             {
                 br->U(1, slice->pic_output_flag);
+            }
+            else
+            {
+                // Hint : When pic_output_flag is not present, it is inferred to be equal to 1.
+                slice->pic_output_flag = 1;
             }
             if (sps->separate_colour_plane_flag == 1)
             {
@@ -713,39 +795,52 @@ bool H265Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
                     }
                     else if (sps->num_short_term_ref_pic_sets > 1)
                     {
-                        // TODO : short_term_ref_pic_set_idx
+                        br->U(std::ceil(std::log2(sps->num_short_term_ref_pic_sets)), slice->short_term_ref_pic_set_idx);                        
                     }
                     if (sps->long_term_ref_pics_present_flag)
                     {
                         if (sps->num_long_term_ref_pics_sps > 0)
                         {
-                            br->UE(slice->num_long_term_sps);
+                            br->UE(slice->num_long_term_sps); 
                         }
                         br->UE(slice->num_long_term_pics);
-                        slice->lt_idx_sps.resize(slice-> num_long_term_sps + slice->num_long_term_pics + 1);
-                        slice->poc_lsb_lt.resize(slice-> num_long_term_sps + slice->num_long_term_pics + 1);
+                        slice->lt_idx_sps.resize(slice->num_long_term_sps + slice->num_long_term_pics + 1);
+                        slice->poc_lsb_lt.resize(slice->num_long_term_sps + slice->num_long_term_pics + 1);
                         slice->used_by_curr_pic_lt_flag.resize(slice-> num_long_term_sps + slice->num_long_term_pics + 1);
                         slice->delta_poc_msb_present_flag.resize(slice-> num_long_term_sps + slice->num_long_term_pics + 1);
                         slice->delta_poc_msb_cycle_lt.resize(slice-> num_long_term_sps + slice->num_long_term_pics + 1);
-                        for (uint32_t i=0; i<slice-> num_long_term_sps + slice->num_long_term_pics; i++)
+                        for (uint32_t i=0; i<slice->num_long_term_sps + slice->num_long_term_pics; i++)
                         {
-                            // if (i<sps->slice-> num_long_term_sps)
-                            // {
-                            //     if (sps->num_long_term_ref_pics_sps > 1)
-                            //     {
-                            //         // TODO : lt_idx_sps
-                            //     }
-                            //     else
-                            //     {
-                            //         // TODO : poc_lsb_lt
-                            //         br->U(1, slice->used_by_curr_pic_lt_flag[i]);
-                            //     }
-                            //     br->U(1, slice->delta_poc_msb_present_flag[i]);
-                            //     if (slice->delta_poc_msb_present_flag[i])
-                            //     {
-                            //         br->UE(slice->delta_poc_msb_cycle_lt[i]);
-                            //     }
-                            // }
+                            if (i < slice->num_long_term_sps)
+                            {
+                                if (sps->num_long_term_ref_pics_sps > 1)
+                                {
+                                    br->U(std::ceil(std::log2(sps->num_long_term_ref_pics_sps)), slice->lt_idx_sps[i]);
+                                }
+                            }
+                            else
+                            {
+                                br->U(sps->log2_max_pic_order_cnt_lsb_minus4 + 4, slice->poc_lsb_lt[i]);
+                                br->U(1, slice->used_by_curr_pic_lt_flag[i]);
+                            }
+                            br->U(1, slice->delta_poc_msb_present_flag[i]);
+                            if (slice->delta_poc_msb_present_flag[i])
+                            {
+                                br->UE(slice->delta_poc_msb_cycle_lt[i]);
+                            }
+                        }
+                        for (uint32_t i=0; i<slice->num_long_term_sps + slice->num_long_term_pics; i++)
+                        {
+                            if (i < slice->num_long_term_sps)
+                            {
+                                _contex->PocLsbLt[i] = sps->lt_ref_pic_poc_lsb_sps.size() >= slice->lt_idx_sps[i] ? sps->lt_ref_pic_poc_lsb_sps[slice->lt_idx_sps[i]] : 0;
+                                _contex->UsedByCurrPicLt[i] = slice->used_by_curr_pic_lt_flag.size() >= slice->lt_idx_sps[i] ? slice->used_by_curr_pic_lt_flag[slice->lt_idx_sps[i]] : 0;
+                            }
+                            else
+                            {
+                                _contex->PocLsbLt[i] = slice->poc_lsb_lt[i];
+                                _contex->UsedByCurrPicLt[i] = slice->used_by_curr_pic_lt_flag[i];
+                            }
                         }
                         if (sps->sps_temporal_mvp_enabled_flag)
                         {
@@ -772,11 +867,11 @@ bool H265Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
                                 }
                             }
                         }
-                        uint32_t NumPicTotalCurr = 0; // TODO (7-57)
+                        uint32_t NumPicTotalCurr = GetNumPicTotalCurr(GetCurrRpsIdx(sps, slice), sps, pps, slice, _contex);
                         if (pps->lists_modification_present_flag && NumPicTotalCurr>1)
                         {
                             slice->rplm = std::make_shared<H265RefPicListsModificationSyntax>();
-                            if (!DeserializeRefPicListsModificationSyntax(br, slice, slice->rplm))
+                            if (!DeserializeRefPicListsModificationSyntax(br, sps, pps, slice, slice->rplm))
                             {
                                 assert(false);
                                 return false;
@@ -862,7 +957,7 @@ bool H265Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
                         slice->entry_point_offset_minus1.resize(slice->num_entry_point_offsets);
                         for (uint32_t i=0; i<slice->num_entry_point_offsets; i++)
                         {
-                            // TODO : entry_point_offset_minus1
+                            br->U(slice->offset_len_minus1 + 1, slice->entry_point_offset_minus1[i]);
                         }
                     }
                 }
@@ -940,31 +1035,75 @@ bool H265Deserialize::DeserializePps3dSyntax(H26xBinaryReader::ptr br, H265PpsSy
     }
 }
 
-bool H265Deserialize::DeserializePpsRangeSyntax(H26xBinaryReader::ptr br, H265PpsSyntax::ptr pps, H265PpsRangeSyntax::ptr ppsRange)
+bool H265Deserialize::DeserializePpsRangeSyntax(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265PpsSyntax::ptr pps, H265PpsRangeSyntax::ptr ppsRange)
 {
     // See also : ITU-T H.265 (2021) - 7.3.2.3.2 Picture parameter set range extension syntax
     try
     {
         if (pps->transform_skip_enabled_flag)
         {
-            br->UE(ppsRange->log2_max_transform_skip_block_size_minus2);   
+            br->UE(ppsRange->log2_max_transform_skip_block_size_minus2);
+            {
+                //
+                // MaxTbLog2SizeY
+                // The variable MaxTbLog2SizeY is set equal to log2_min_luma_transform_block_size_minus2 + 2 + 
+                // log2_diff_max_min_luma_transform_block_size.
+                //
+                // Hint : When present, the value of 
+                // log2_max_transform_skip_block_size_minus2 shall be less than or equal to MaxTbLog2SizeY − 2.
+                //
+                MPP_H26X_SYNTAXT_STRICT_CHECK(ppsRange->log2_max_transform_skip_block_size_minus2 <= (sps->log2_min_luma_transform_block_size_minus2 + 2 + sps->log2_diff_max_min_luma_transform_block_size) /* MaxTbLog2SizeY */ -2,
+                                            "[pps range] log2_max_transform_skip_block_size_minus2 out of range", return false);
+            }
         }
         br->U(1, ppsRange->cross_component_prediction_enabled_flag);
+        {
+            // Hint : When ChromaArrayType is not equal to 3, it is a requirement of bitstream conformance that the value of
+            // cross_component_prediction_enabled_flag shall be equal to 0.
+            MPP_H26X_SYNTAXT_STRICT_CHECK((sps->separate_colour_plane_flag == 0 ? sps->chroma_format_idc : 0) /* ChromaArrayType */ != 3 && !ppsRange->cross_component_prediction_enabled_flag,
+                                            "[pps range] error separate_colour_plane_flag flag", return false);
+        }
         br->U(1, ppsRange->chroma_qp_offset_list_enabled_flag);
+        {
+            MPP_H26X_SYNTAXT_STRICT_CHECK((sps->separate_colour_plane_flag == 0 ? sps->chroma_format_idc : 0) /* ChromaArrayType */ == 0 && !ppsRange->chroma_qp_offset_list_enabled_flag,
+                                "[pps range] error chroma_qp_offset_list_enabled_flag flag", return false);
+        }
         if (ppsRange->chroma_qp_offset_list_enabled_flag)
         {
             br->UE(ppsRange->diff_cu_chroma_qp_offset_depth);
+            {
+                // Hint : The value of diff_cu_chroma_qp_offset_depth shall be in the range of 0 to log2_diff_max_min_luma_coding_block_size, inclusive.
+                MPP_H26X_SYNTAXT_STRICT_CHECK(ppsRange->diff_cu_chroma_qp_offset_depth <= sps->log2_diff_max_min_luma_coding_block_size, "[pps range] diff_cu_chroma_qp_offset_depth out of range", return false);
+            }
             br->UE(ppsRange->chroma_qp_offset_list_len_minus1);
+            {
+                // Hint : The value of chroma_qp_offset_list_len_minus1 shall be in the range of 0 to 5, inclusive.
+                MPP_H26X_SYNTAXT_STRICT_CHECK(/* ppsRange->chroma_qp_offset_list_len_minus1 >= 0 && */ ppsRange->chroma_qp_offset_list_len_minus1 <= 5, "[pps range] chroma_qp_offset_list_len_minus1 out of range", return false);
+            }
             ppsRange->cb_qp_offset_list.resize(ppsRange->chroma_qp_offset_list_len_minus1 + 1);
             ppsRange->cr_qp_offset_list.resize(ppsRange->chroma_qp_offset_list_len_minus1 + 1);
             for (uint32_t i=0; i<=ppsRange->chroma_qp_offset_list_len_minus1; i++)
             {
                 br->SE(ppsRange->cb_qp_offset_list[i]);
                 br->SE(ppsRange->cr_qp_offset_list[i]);
+                {
+                    // Hint : The values of cb_qp_offset_list[ i ] and cr_qp_offset_list[ i ] shall be in the range of −12 to +12, inclusive.
+                    MPP_H26X_SYNTAXT_STRICT_CHECK(ppsRange->cb_qp_offset_list[i] >= -12 && ppsRange->cb_qp_offset_list[i] <= 12, "[pps range] cb_qp_offset_list out of range", return false);
+                    MPP_H26X_SYNTAXT_STRICT_CHECK(ppsRange->cr_qp_offset_list[i] >= -12 && ppsRange->cr_qp_offset_list[i] <= 12, "[pps range] cr_qp_offset_list out of range", return false);
+                }
             }
         }
-        br->UE(ppsRange->log2_sao_offset_scale_luma); 
-        br->UE(ppsRange->log2_sao_offset_scale_chroma); 
+        br->UE(ppsRange->log2_sao_offset_scale_luma);
+        {
+            // Hint : The value of log2_sao_offset_scale_luma shall be in the range of 0 to Max( 0, BitDepthY − 10 ), inclusive.
+            MPP_H26X_SYNTAXT_STRICT_CHECK(/* ppsRange->log2_sao_offset_scale_luma >= 0 && */ ppsRange->log2_sao_offset_scale_luma <= std::max(0u, (sps->bit_depth_luma_minus8 + 8) /* BitDepthY (7-4) */ - 10), "[pps range] log2_sao_offset_scale_luma out of range", return false);
+        }
+        br->UE(ppsRange->log2_sao_offset_scale_chroma);
+        {
+            // Hint : The value of log2_sao_offset_scale_chroma shall be in the range of 0 to Max( 0, BitDepthC − 10 ), inclusive.
+            MPP_H26X_SYNTAXT_STRICT_CHECK(/* ppsRange->log2_sao_offset_scale_chroma >= 0 && */ ppsRange->log2_sao_offset_scale_chroma <= std::max(0u, (sps->bit_depth_chroma_minus8 + 8) /* BitDepthC (7-6) */ - 10), "[pps range] log2_sao_offset_scale_chroma out of range", return false);
+
+        }
         return true;
     }
     catch (...)
@@ -1193,6 +1332,10 @@ bool H265Deserialize::DeserializeVuiSyntax(H26xBinaryReader::ptr br, H265SpsSynt
         if (vui->video_signal_type_present_flag)
         {
             br->U(3, vui->video_format);
+            {
+                // See also : ITU-T H.265 (2021) - Table E.2 – Meaning of video_format
+                MPP_H26X_SYNTAXT_STRICT_CHECK(/* vui->video_format >= 0 && */ vui->video_format <= 5, "[vui] video_format out of range", return false);
+            }
             br->U(1, vui->video_full_range_flag);
             br->U(1, vui->colour_description_present_flag);
             if (vui->colour_description_present_flag)
@@ -1200,6 +1343,14 @@ bool H265Deserialize::DeserializeVuiSyntax(H26xBinaryReader::ptr br, H265SpsSynt
                 br->U(8, vui->colour_primaries);
                 br->U(8, vui->transfer_characteristics);
                 br->U(8, vui->matrix_coeffs);
+            }
+            else
+            {
+                // See also : ITU-T H.265 (2021) - D.3.40 Content colour volume SEI message semantics
+                // Hint : When the matrix_coeffs syntax element is not present, the value of matrix_coeffs is inferred to be equal to 2 (unspecified).
+                vui->colour_primaries = 2;
+                vui->transfer_characteristics = 2; // or 4, 5
+                vui->matrix_coeffs = 2;
             }
         }
         br->U(1, vui->chroma_loc_info_present_flag);
@@ -1246,10 +1397,34 @@ bool H265Deserialize::DeserializeVuiSyntax(H26xBinaryReader::ptr br, H265SpsSynt
                 br->U(1, vui->motion_vectors_over_pic_boundaries_flag);
                 br->U(1, vui->restricted_ref_pic_lists_flag);
                 br->UE(vui->min_spatial_segmentation_idc);
+                {
+                    // Hint : The value of min_spatial_segmentation_idc shall be in the range of 0 to 4095, inclusive.
+                    MPP_H26X_SYNTAXT_STRICT_CHECK(/* vui->min_spatial_segmentation_idc >= 0 && */ vui->min_spatial_segmentation_idc <= 4095, "[vui] min_spatial_segmentation_idc out of range", return false);
+                }
                 br->UE(vui->max_bytes_per_pic_denom);
+                {
+                    // Hint : The value of max_bytes_per_pic_denom shall be in the range of 0 to 16, inclusive.
+                    MPP_H26X_SYNTAXT_STRICT_CHECK(/* vui->max_bytes_per_pic_denom >= 0 && */ vui->max_bytes_per_pic_denom <= 16, "[vui] max_bytes_per_pic_denom out of range", return false);
+                }
                 br->UE(vui->max_bits_per_min_cu_denom);
+                {
+                    // Hint : The value of max_bits_per_min_cu_denom shall be in the range of 0 to 16, inclusive.
+                    MPP_H26X_SYNTAXT_STRICT_CHECK(/* vui->max_bits_per_min_cu_denom >= 0 && */ vui->max_bits_per_min_cu_denom <= 16, "[vui] max_bits_per_min_cu_denom out of range", return false);
+                }
                 br->UE(vui->log2_max_mv_length_horizontal);
                 br->UE(vui->log2_max_mv_length_vertical);
+            }
+            else
+            {
+                // Hint : When the motion_vectors_over_pic_boundaries_flag syntax element is not present, motion_vectors_over_pic_boundaries_flag value is inferred to be equal to 1.
+                vui->motion_vectors_over_pic_boundaries_flag = 1;
+                // Hint : When the max_bytes_per_pic_denom syntax element is not present, the value of max_bytes_per_pic_denom is inferred to be equal to 2.
+                vui->max_bytes_per_pic_denom = 2;
+                // Hint : When the max_bits_per_min_cu_denom is not present, the value of max_bits_per_min_cu_denom is inferred to be equal to 1.
+                vui->max_bits_per_min_cu_denom = 1;
+                // Hint : When not present, the values of log2_max_mv_length_horizontal and log2_max_mv_length_vertical are both inferred to be equal to 15.
+                vui->log2_max_mv_length_horizontal = 15;
+                vui->log2_max_mv_length_vertical = 15;
             }
         }
         return true;
@@ -1260,18 +1435,19 @@ bool H265Deserialize::DeserializeVuiSyntax(H26xBinaryReader::ptr br, H265SpsSynt
     } 
 }
 
-bool H265Deserialize::DeserializeRefPicListsModificationSyntax(H26xBinaryReader::ptr br, H265SliceHeaderSyntax::ptr slice, H265RefPicListsModificationSyntax::ptr rplm)
+bool H265Deserialize::DeserializeRefPicListsModificationSyntax(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265PpsSyntax::ptr pps, H265SliceHeaderSyntax::ptr slice, H265RefPicListsModificationSyntax::ptr rplm)
 {
     // See also : ITU-T H.265 (2021) - 7.3.6.2 Reference picture list modification syntax
     try
     {
+        uint32_t NumPicTotalCurr = GetNumPicTotalCurr(GetCurrRpsIdx(sps, slice), sps, pps, slice, _contex);
         br->U(1, rplm->ref_pic_list_modification_flag_l0);
         if (rplm->ref_pic_list_modification_flag_l0)
         {
             rplm->list_entry_l0.resize(slice->num_ref_idx_l0_active_minus1 + 1);
             for (uint32_t i=0; i<=slice->num_ref_idx_l0_active_minus1; i++)
             {
-                // TODO : list_entry_l0
+                br->U(std::ceil(std::log2(NumPicTotalCurr)), rplm->list_entry_l0[i]);
             }
         }
         if (slice->slice_type == H265SliceType::MMP_H265_B_SLICE)
@@ -1282,7 +1458,7 @@ bool H265Deserialize::DeserializeRefPicListsModificationSyntax(H26xBinaryReader:
                 rplm->list_entry_l1.resize(slice->num_ref_idx_l1_active_minus1 + 1);
                 for (uint32_t i=0; i<=slice->num_ref_idx_l1_active_minus1; i++)
                 {
-                    // TODO : list_entry_l1
+                    br->U(std::ceil(std::log2(NumPicTotalCurr)), rplm->list_entry_l1[i]);
                 }
             }
         }
@@ -1299,7 +1475,17 @@ bool H265Deserialize::DeserializePredWeightTableSyntax(H26xBinaryReader::ptr br,
     // See also : ITU-T H.265 (2021) - 7.3.6.3 Weighted prediction parameters syntax
     try
     {
-        // TODO
+        uint8_t ChromaArrayType = sps->separate_colour_plane_flag == 0 ? sps->chroma_format_idc : 0;
+        br->UE(pwt->luma_log2_weight_denom);
+        if (ChromaArrayType != 0)
+        {
+            br->SE(pwt->delta_chroma_log2_weight_denom);
+        }
+        for (uint32_t i=0; i<=slice->num_ref_idx_l0_active_minus1; i++)
+        {
+            // TODO
+            // pic_layer_id( picX ) returns the value of the nuh_layer_id of the VCL NAL units in the picture picX.
+        }
         return true;
     }
     catch (...)
@@ -1544,7 +1730,12 @@ bool H265Deserialize::DeserializeHrdSyntax(H26xBinaryReader::ptr br, uint8_t com
             br->U(1, hrd->fixed_pic_rate_general_flag[i]);
             if (!hrd->fixed_pic_rate_general_flag[i])
             {
-                br->U(1, hrd->fixed_pic_rate_general_flag[i]);
+                br->U(1, hrd->fixed_pic_rate_within_cvs_flag[i]);
+            }
+            else
+            {
+                // Hint : When fixed_pic_rate_general_flag[ i ] is equal to 1, the value of fixed_pic_rate_within_cvs_flag[ i ] is inferred to be equal to 1.
+                hrd->fixed_pic_rate_within_cvs_flag[i] = 1;
             }
             // To check condition of elemental_duration_in_tc_minus1
             // See also : https://github.com/FFmpeg/FFmpeg/commit/ded4478b8b6dbe939113b38df53778972e3af70e (FFmpeg 6.x)
@@ -1559,6 +1750,10 @@ bool H265Deserialize::DeserializeHrdSyntax(H26xBinaryReader::ptr br, uint8_t com
             if (!hrd->low_delay_hrd_flag[i])
             {
                 br->UE(hrd->cpb_cnt_minus1[i]);
+                {
+                    // Hint : The value of cpb_cnt_minus1[ i ] shall be in the range of 0 to 31, inclusive.
+                    MPP_H26X_SYNTAXT_STRICT_CHECK(/* hrd->cpb_cnt_minus1[i] >= 0 && */ hrd->cpb_cnt_minus1[i] <= 31, "[hrd] cpb_cnt_minus1 out of range", return false);
+                }
             }
             if (hrd->nal_hrd_parameters_present_flag)
             {
@@ -1919,9 +2114,9 @@ bool H265Deserialize::DeserializeStRefPicSetSyntax(H26xBinaryReader::ptr br, H26
                 assert(false);
                 return false;
             }
-            stps->used_by_curr_pic_flag.resize(sps->stpss[RefRpsIdx]->NumDeltaPocs);
-            stps->use_delta_flag.resize(sps->stpss[RefRpsIdx]->NumDeltaPocs);
-            for (uint32_t j = 0; j<=sps->stpss[RefRpsIdx]->NumDeltaPocs; j++)
+            stps->used_by_curr_pic_flag.resize(_contex->NumDeltaPocs[stRpsIdx]);
+            stps->use_delta_flag.resize(_contex->NumDeltaPocs[stRpsIdx]);
+            for (uint32_t j = 0; j<=_contex->NumDeltaPocs[stRpsIdx]; j++)
             {
                 br->U(1, stps->used_by_curr_pic_flag[j]);
                 if (!stps->used_by_curr_pic_flag[j])
@@ -1933,13 +2128,24 @@ bool H265Deserialize::DeserializeStRefPicSetSyntax(H26xBinaryReader::ptr br, H26
         else
         {
             br->UE(stps->num_negative_pics);
+            _contex->NumNegativePics[stRpsIdx] = stps->num_negative_pics; // (7-63)
             br->UE(stps->num_positive_pics);
+            _contex->NumPositivePics[stRpsIdx] = stps->num_positive_pics; // (7-64)
             stps->delta_poc_s0_minus1.resize(stps->num_negative_pics);
             stps->used_by_curr_pic_s0_flag.resize(stps->num_negative_pics);
             for (uint32_t i=0; i<stps->num_negative_pics; i++)
             {
                 br->UE(stps->delta_poc_s0_minus1[i]);
                 br->U(1, stps->used_by_curr_pic_s0_flag[i]);
+                _contex->UsedByCurrPicS0[stRpsIdx][i] = stps->used_by_curr_pic_s0_flag[i]; // (7-65)
+                if (i == 0)
+                {
+                    _contex->DeltaPocS0[stRpsIdx][i] = -(stps->delta_poc_s0_minus1[i] + 1); // (7-67)
+                }
+                else
+                {
+                    _contex->DeltaPocS0[stRpsIdx][i] = _contex->DeltaPocS0[stRpsIdx][i-1] - (stps->delta_poc_s0_minus1[i] + 1); // (7-68)
+                }
             }
             stps->delta_poc_s1_minus1.resize(stps->num_positive_pics);
             stps->used_by_curr_pic_s1_flag.resize(stps->num_positive_pics);
@@ -1947,12 +2153,18 @@ bool H265Deserialize::DeserializeStRefPicSetSyntax(H26xBinaryReader::ptr br, H26
             {
                 br->UE(stps->delta_poc_s1_minus1[i]);
                 br->U(1, stps->used_by_curr_pic_s1_flag[i]);
-            }
+                _contex->UsedByCurrPicS1[stRpsIdx][i] = stps->used_by_curr_pic_s1_flag[i]; // (7-66)
+                if (i == 0)
+                {
+                    _contex->DeltaPocS1[stRpsIdx][i] = stps->delta_poc_s1_minus1[i] + 1; // (7-68)
+                }
+                else
+                {
+                    _contex->DeltaPocS1[stRpsIdx][i] = _contex->DeltaPocS1[stRpsIdx][i-1] + (stps->delta_poc_s1_minus1[i] + 1); // (7-70)
+                }
+            }    
         }
-        // determine NumDeltaPocs (7-71)
-        {
-            stps->NumDeltaPocs = stps->num_negative_pics + stps->num_positive_pics;
-        }
+        _contex->NumDeltaPocs[stRpsIdx] = _contex->NumNegativePics[stRpsIdx] + _contex->NumNegativePics[stRpsIdx]; // (7-71)
         return true;
     }
     catch (...)
