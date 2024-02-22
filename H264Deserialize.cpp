@@ -31,6 +31,21 @@ namespace Codec
 //    - Otherwise (separate_colour_plane_flag is equal to 1), ChromaArrayType is set equal to 0.
 //
 
+// Table 7-3 – Specification of default scaling lists Default_4x4_Intra and Default_4x4_Inter
+static std::vector<uint8_t> Default_4x4_Intra = {6, 13, 13, 20, 20, 20, 28, 28, 28, 28, 32, 32, 32, 37, 37, 42};
+static std::vector<uint8_t> Default_4x4_Inter = {10, 14, 14, 20, 20, 20, 24, 24, 24, 24, 27, 27, 27, 30, 30, 34};
+// Table 7-4 – Specification of default scaling lists Default_8x8_Intra and Default_8x8_Inter
+static std::vector<uint8_t> Default_8x8_Intra = {6, 10, 10, 13, 11, 13, 16, 16, 16, 16, 18, 18, 18, 18, 18, 23,
+                                                 23, 23, 23, 23, 23, 25, 25, 25, 25, 25, 25, 25, 27, 27, 27, 27,
+                                                 27, 27, 27, 27, 29, 29, 29, 29, 29, 29, 29, 31, 31, 31, 31, 31,
+                                                 31, 33, 33, 33, 33, 33, 36, 36, 36, 36, 38, 38, 38, 40, 40, 42
+                                                };
+static std::vector<uint8_t> Default_8x8_Inter  = {10, 14, 14, 20, 20, 20, 24, 24, 24, 24, 27, 27, 27, 30, 30, 34,
+                                                 9, 13, 13, 15, 13, 15, 17, 17, 17, 17, 19, 19, 19, 19, 19, 21,
+                                                 24, 24, 24, 24, 25, 25, 25, 25, 25, 25, 25, 27, 27, 27, 27, 27,
+                                                 27, 28, 28, 28, 28, 28, 30, 30, 30, 30, 32, 32, 32, 33, 33, 35
+                                                };
+
 H264Deserialize::H264Deserialize()
 {
     _contex = std::make_shared<H264ContextSyntax>();
@@ -329,6 +344,11 @@ bool H264Deserialize::DeserializeVuiSyntax(H26xBinaryReader::ptr br, H264VuiSynt
                 br->U(8, vui->transfer_characteristics);
                 br->U(8, vui->matrix_coefficients);
             }
+            else
+            {
+                // See also : Table E-5 – Matrix coefficients interpretation using matrix_coefficients syntax elemen
+                vui->transfer_characteristics = 2; /* Unspecified */
+            }
         }
         br->U(1, vui->chroma_location_info_present_flag);
         if (vui->chroma_location_info_present_flag)
@@ -356,6 +376,13 @@ bool H264Deserialize::DeserializeVuiSyntax(H26xBinaryReader::ptr br, H264VuiSynt
             {
                 return false;
             }
+        }
+        else
+        {
+            // Hint : Otherwise (nal_hrd_parameters_present_flag is equal to 0), BitRate[ SchedSelIdx ] and CpbSize[ SchedSelIdx ] 
+            // are inferred as specified in subclause E.2.2 for NAL HRD parameters.
+            vui->nal_hrd_parameters = std::make_shared<H264HrdSyntax>();
+            // TODO
         }
         br->U(1, vui->vcl_hrd_parameters_present_flag);
         if (vui->vcl_hrd_parameters_present_flag)
@@ -569,6 +596,8 @@ bool H264Deserialize::DeserializeSpsSyntax(H26xBinaryReader::ptr br, H264SpsSynt
             br->U(1, sps->seq_scaling_matrix_present_flag);
             if (sps->seq_scaling_matrix_present_flag)
             {
+                // TODO : UseDefaultScalingMatrix4x4Flag and UseDefaultScalingMatrix8x8Flag
+                assert(false);
                 int32_t loopTime = (sps->chroma_format_idc != H264ChromaFormat::MMP_H264_CHROMA_444) ? 8 : 12;
                 sps->seq_scaling_list_present_flag.resize(loopTime);
                 sps->ScalingList4x4.resize(6);
@@ -586,6 +615,10 @@ bool H264Deserialize::DeserializeSpsSyntax(H26xBinaryReader::ptr br, H264SpsSynt
                             {
                                 return false;
                             }
+                            if (sps->UseDefaultScalingMatrix4x4Flag[i] == 1)
+                            {
+                                // TODO
+                            }
                         }
                         else
                         {
@@ -593,13 +626,16 @@ bool H264Deserialize::DeserializeSpsSyntax(H26xBinaryReader::ptr br, H264SpsSynt
                             {
                                 return false;
                             }
+                            if (sps->UseDefaultScalingMatrix8x8Flag[i] == 1)
+                            {
+                                // TODO
+                            }
                         }
                     }
                 }
             }
             else
             {
-                // Reference : FFmpeg 6.x
                 sps->chroma_format_idc = 1;
                 sps->separate_colour_plane_flag = 0;
                 sps->bit_depth_luma_minus8 = 0;
@@ -621,7 +657,7 @@ bool H264Deserialize::DeserializeSpsSyntax(H26xBinaryReader::ptr br, H264SpsSynt
                 // Flat_8x8_16[ k ] = 16, with k = 0..63
                 {
                     sps->ScalingList8x8.resize(6); /* 6..11 */
-                    for (size_t i=0; i<2; i++)
+                    for (size_t i=0; i<6; i++)
                     {
                         sps->ScalingList8x8[i].resize(64);
                         for (size_t j=0; j<64; j++)
@@ -784,7 +820,10 @@ bool H264Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
             else /* if (slice->num_ref_idx_active_override_flag == 0) */
             {
                 slice->num_ref_idx_l0_active_minus1 = pps->num_ref_idx_l0_default_active_minus1;
-                slice->num_ref_idx_l1_active_minus1 = pps->num_ref_idx_l1_default_active_minus1;
+                if (slice->slice_type == H264SliceType::MMP_H264_B_SLICE)
+                {
+                    slice->num_ref_idx_l1_active_minus1 = pps->num_ref_idx_l1_default_active_minus1;
+                }
             }
         }
         if (nal->nal_unit_type == 20 /* MMP_H264_NALU_TYPE_SLC_EXT */ || nal->nal_unit_type == 21)
@@ -1214,12 +1253,20 @@ bool H264Deserialize::DeserializePpsSyntax(H26xBinaryReader::ptr br, H264PpsSynt
                             {
                                 return false;
                             }
+                            if (pps->UseDefaultScalingMatrix4x4Flag[i] == 1)
+                            {
+                                // TODO
+                            }
                         }
                         else
                         {
                             if (!DeserializeScalingListSyntax(br, pps->ScalingList8x8[i - 6], 64, pps->UseDefaultScalingMatrix8x8Flag[i]))
                             {
                                 return false;
+                            }
+                            if (pps->UseDefaultScalingMatrix8x8Flag[i] == 1)
+                            {
+                                // TODO
                             }
                         }
                     }
@@ -1447,6 +1494,11 @@ bool H264Deserialize::DeserializePredictionWeightTableSyntax(H26xBinaryReader::p
                 br->SE(pwt->luma_weight_l0[i]);
                 br->SE(pwt->luma_offset_l0[i]);
             }
+            else
+            {
+                // Hint : When luma_weight_l0_flag is equal to 0, luma_weight_l0[ i ] shall be inferred to be equal to 2^luma_log2_weight_denom for RefPicList0[ i ].
+                pwt->luma_weight_l0[i] = 1 << pwt->luma_log2_weight_denom;
+            }
             if (ChromaArrayType != 0)
             {
                 br->U(1, pwt->chroma_weight_l0_flag[i]);
@@ -1478,6 +1530,10 @@ bool H264Deserialize::DeserializePredictionWeightTableSyntax(H26xBinaryReader::p
                     br->SE(pwt->luma_weight_l1[i]);
                     br->SE(pwt->luma_weight_l1[i]);
                 }
+                else
+                {
+                    pwt->luma_weight_l1[i] = 1 << pwt->luma_log2_weight_denom;
+                }
                 if (ChromaArrayType != 0)
                 {
                     br->U(1, pwt->chroma_weight_l1_flag[i]);
@@ -1489,6 +1545,13 @@ bool H264Deserialize::DeserializePredictionWeightTableSyntax(H26xBinaryReader::p
                         {
                             br->SE(pwt->chroma_weight_l1[i][j]);
                             br->SE(pwt->chroma_offset_l1[i][j]);
+                        }
+                    }
+                    else
+                    {
+                        for (size_t j=0; j<2; j++)
+                        {
+                            pwt->chroma_weight_l1[i][j] = 1 << pwt->chroma_log2_weight_denom;
                         }
                     }
                 }
