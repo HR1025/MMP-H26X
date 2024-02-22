@@ -252,6 +252,36 @@ H265VPSSyntax::H265VPSSyntax()
     vps_extension_data_flag = 0;
 }
 
+H265SpsContext::H265SpsContext()
+{
+    BitDepthY = 0;  
+    QpBdOffsetY = 0;
+    BitDepthC = 0;  
+    QpBdOffsetC = 0;
+
+    MaxPicOrderCntLsb = 0;
+
+    MinCbLog2SizeY = 0;     
+    CtbLog2SizeY = 0;       
+    MinCbSizeY = 0;         
+    CtbSizeY = 0;           
+    PicWidthInMinCbsY = 0;  
+    PicWidthInCtbsY = 0;    
+    PicHeightInMinCbsY = 0; 
+    PicHeightInCtbsY = 0;   
+    PicSizeInMinCbsY = 0;   
+    PicSizeInCtbsY = 0;     
+    PicSizeInSamplesY = 0;  
+    PicWidthInSamplesC = 0; 
+    PicHeightInSamplesC = 0;
+
+    CtbWidthC = 0; 
+    CtbHeightC = 0;
+
+    PcmBitDepthY = 0;
+    PcmBitDepthC = 0;
+}
+
 H265SpsSyntax::H265SpsSyntax()
 {
     sps_video_parameter_set_id = 0;

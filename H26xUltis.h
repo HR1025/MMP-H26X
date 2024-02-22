@@ -11,6 +11,8 @@
 #include <iostream>
 #include <cassert>
 
+#include "H265Common.h"
+
 #ifdef MMP_H26x_EXTERN_HEADER
 #include MMP_H26x_EXTERN_HEADER
 #endif /* MMP_H26x_EXTERN_HEADER */
@@ -35,13 +37,13 @@ namespace Codec
 #ifdef MMP_H26X_DEBUG_MODE
 #define MPP_H26X_SYNTAXT_STRICT_CHECK(cond, msg, exp)               if (!(cond))\
                                                                     {\
-                                                                        H26x_LOG_ERROR << "[H264] " << "[" << __FILE__ << ":" << __LINE__ << "]" << msg << H26x_LOG_TERMINATOR;\
+                                                                        H26x_LOG_ERROR << "[H26X] " << "[" << __FILE__ << ":" << __LINE__ << "]" << msg << H26x_LOG_TERMINATOR;\
                                                                         assert(false);\
                                                                         exp;\
                                                                     }
 #define MPP_H26X_SYNTAXT_NORMAL_CHECK(cond, msg, exp)               if (!(cond))\
                                                                     {\
-                                                                        H26x_LOG_INFO << "[H264] " << "[" << __FILE__ << ":" << __LINE__ << "]" << msg << H26x_LOG_TERMINATOR;\
+                                                                        H26x_LOG_INFO << "[H26X] " << "[" << __FILE__ << ":" << __LINE__ << "]" << msg << H26x_LOG_TERMINATOR;\
                                                                         exp;\
                                                                     }
 #else
@@ -58,6 +60,11 @@ namespace Codec
 std::string H264NaluTypeToStr(uint8_t nal_unit_type);
 
 std::string H264SliceTypeToStr(uint8_t slice_type);
+
+/**
+ * @sa ITU-T H.265 (2021) - 7.4.3.2 Sequence parameter set RBSP semantics
+ */
+void FillH265SpsContext(H265SpsSyntax::ptr sps);
 
 
 } // namespace Codec
