@@ -12,10 +12,11 @@ namespace Mmp
 namespace Codec
 {
 
+
 /**
  * @sa ITU-T H.265 (2021) - Table 6-1
  */
-static void GetSubWidthCAndSubHeightC(H265SpsSyntax::ptr sps, uint8_t& SubWidthC, uint8_t& SubHeightC)
+static void GetH265SubWidthCAndSubHeightC(H265SpsSyntax::ptr sps, uint8_t& SubWidthC, uint8_t& SubHeightC)
 {
     if (sps->chroma_format_idc == 0 && sps->separate_colour_plane_flag == 0)
     {
@@ -95,7 +96,7 @@ void FillH265SpsContext(H265SpsSyntax::ptr sps)
 
     uint8_t SubWidthC = 1, SubHeightC = 1;
 
-    GetSubWidthCAndSubHeightC(sps, SubWidthC, SubHeightC);
+    GetH265SubWidthCAndSubHeightC(sps, SubWidthC, SubHeightC);
 
     context->BitDepthY = 8 + sps->bit_depth_luma_minus8;
     context->QpBdOffsetY = 6 * sps->bit_depth_luma_minus8;
@@ -130,6 +131,94 @@ void FillH265SpsContext(H265SpsSyntax::ptr sps)
 
     context->CtbWidthC = context->CtbSizeY / SubWidthC;
     context->CtbHeightC = context->CtbSizeY / SubHeightC;
+}
+
+
+/**
+ * @sa ISO 14496/10(2020) - Table 6-1
+ */
+static void GetH264SubWidthCAndSubHeightC(H264SpsSyntax::ptr sps, uint8_t& SubWidthC, uint8_t& SubHeightC)
+{
+    SubWidthC = 1, SubHeightC = 1;
+    if (sps->chroma_format_idc == 0 && sps->separate_colour_plane_flag == 0)
+    {
+        assert(false);
+    }
+    else if (sps->chroma_format_idc == 1 && sps->separate_colour_plane_flag == 0)
+    {
+        SubWidthC = 2;
+        SubHeightC = 2;
+    }
+    else if (sps->chroma_format_idc == 2 && sps->separate_colour_plane_flag == 0)
+    {
+        SubWidthC = 2;
+        SubHeightC = 1;
+    }
+    else if (sps->chroma_format_idc == 3 && sps->separate_colour_plane_flag == 0)
+    {
+        // SubWidthC = 1;
+        // SubHeightC = 1;
+    }
+    else if (sps->chroma_format_idc == 3 && sps->separate_colour_plane_flag == 1)
+    {
+        assert(false);
+    }
+    else
+    {
+        assert(false);
+    }
+}
+
+void FillH264SpsContext(H264SpsSyntax::ptr sps)
+{
+    uint8_t SubWidthC, SubHeightC;
+    uint8_t MbWidthC, MbHeightC;
+
+    GetH264SubWidthCAndSubHeightC(sps, SubWidthC, SubHeightC);
+    MbWidthC = 16 / SubWidthC; // (6-1)
+    MbHeightC = 16 / SubHeightC; // (6-2)
+
+    sps->context = std::make_shared<H264SpsContext>();
+    H264SpsContext::ptr context = sps->context;
+
+    context->BitDepthY = 8 + sps->bit_depth_luma_minus8;
+    context->QpBdOffsetY = 6 * sps->bit_depth_luma_minus8;
+
+    context->BitDepthC = 8 + sps->bit_depth_chroma_minus8;
+    context->QpBdOffsetC = 6 * sps->bit_depth_chroma_minus8;
+
+    context->RawMbBits = 256 * context->BitDepthY + 2 * MbWidthC * MbHeightC * context->BitDepthC;
+
+    context->MaxFrameNum = 1 << (sps->log2_max_frame_num_minus4 + 4);
+
+    context->MaxPicOrderCntLsb = 1 << (sps->log2_max_pic_order_cnt_lsb_minus4 + 4);
+
+    context->ExpectedDeltaPerPicOrderCntCycle = 0;
+    for (uint32_t i=0; i<sps->num_ref_frames_in_pic_order_cnt_cycle; i++)
+    {
+        context->ExpectedDeltaPerPicOrderCntCycle += sps->offset_for_ref_frame[i];
+    }
+
+    context->PicWidthInMbs = sps->pic_width_in_mbs_minus1 + 1;
+    context->PicWidthInSamplesL = context->PicWidthInMbs * 16;
+    context->PicWidthInSamplesC = context->PicWidthInMbs * MbWidthC;
+
+    context->PicHeightInMapUnits = sps->pic_height_in_map_units_minus1 + 1;
+    context->PicSizeInMapUnits = context->PicWidthInMbs * context->PicHeightInMapUnits;
+
+    context->FrameHeightInMbs = (2 - sps->frame_mbs_only_flag) * context->PicHeightInMapUnits;
+
+    uint32_t ChromaArrayType = sps->separate_colour_plane_flag == 1 ? 0 : sps->chroma_format_idc;
+    if (ChromaArrayType == 0)
+    {
+        context->CropUnitX = 1;
+        context->CropUnitY = 2 - sps->frame_mbs_only_flag;
+    }
+    else
+    {
+        context->CropUnitX = SubWidthC;
+        context->CropUnitY = SubHeightC * (2 - sps->frame_mbs_only_flag);
+    }
 }
 
 } // namespace Codec

@@ -267,6 +267,26 @@ H264SubSpsSyntax::H264SubSpsSyntax()
     additional_extension2_data_flag = 0;
 }
 
+H264SpsContext::H264SpsContext()
+{
+    BitDepthY = 0;                       
+    QpBdOffsetY = 0;                     
+    BitDepthC = 0;                       
+    QpBdOffsetC = 0;                     
+    RawMbBits = 0;                       
+    MaxFrameNum = 0;                     
+    MaxPicOrderCntLsb = 0;               
+    ExpectedDeltaPerPicOrderCntCycle = 0;
+    PicWidthInMbs = 0;                   
+    PicWidthInSamplesL = 0;              
+    PicWidthInSamplesC = 0;              
+    PicHeightInMapUnits = 0;             
+    PicSizeInMapUnits = 0;               
+    FrameHeightInMbs = 0;                
+    CropUnitX = 0;                       
+    CropUnitY = 0;                       
+}
+
 H264SpsSyntax::H264SpsSyntax()
 {
     profile_idc = 0;

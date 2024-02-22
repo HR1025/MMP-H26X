@@ -11,6 +11,8 @@
 #include <iostream>
 #include <cassert>
 
+#include "H264Common.h"
+
 #include "H265Common.h"
 
 #ifdef MMP_H26x_EXTERN_HEADER
@@ -60,6 +62,8 @@ namespace Codec
 std::string H264NaluTypeToStr(uint8_t nal_unit_type);
 
 std::string H264SliceTypeToStr(uint8_t slice_type);
+
+void FillH264SpsContext(H264SpsSyntax::ptr sps);
 
 /**
  * @sa ITU-T H.265 (2021) - 7.4.3.2 Sequence parameter set RBSP semantics
