@@ -32,15 +32,15 @@ namespace Codec
 //
 
 // Table 7-3 – Specification of default scaling lists Default_4x4_Intra and Default_4x4_Inter
-static std::vector<uint8_t> Default_4x4_Intra = {6, 13, 13, 20, 20, 20, 28, 28, 28, 28, 32, 32, 32, 37, 37, 42};
-static std::vector<uint8_t> Default_4x4_Inter = {10, 14, 14, 20, 20, 20, 24, 24, 24, 24, 27, 27, 27, 30, 30, 34};
+static std::vector<int32_t> Default_4x4_Intra = {6, 13, 13, 20, 20, 20, 28, 28, 28, 28, 32, 32, 32, 37, 37, 42};
+static std::vector<int32_t> Default_4x4_Inter = {10, 14, 14, 20, 20, 20, 24, 24, 24, 24, 27, 27, 27, 30, 30, 34};
 // Table 7-4 – Specification of default scaling lists Default_8x8_Intra and Default_8x8_Inter
-static std::vector<uint8_t> Default_8x8_Intra = {6, 10, 10, 13, 11, 13, 16, 16, 16, 16, 18, 18, 18, 18, 18, 23,
+static std::vector<int32_t> Default_8x8_Intra = {6, 10, 10, 13, 11, 13, 16, 16, 16, 16, 18, 18, 18, 18, 18, 23,
                                                  23, 23, 23, 23, 23, 25, 25, 25, 25, 25, 25, 25, 27, 27, 27, 27,
                                                  27, 27, 27, 27, 29, 29, 29, 29, 29, 29, 29, 31, 31, 31, 31, 31,
                                                  31, 33, 33, 33, 33, 33, 36, 36, 36, 36, 38, 38, 38, 40, 40, 42
                                                 };
-static std::vector<uint8_t> Default_8x8_Inter  = {10, 14, 14, 20, 20, 20, 24, 24, 24, 24, 27, 27, 27, 30, 30, 34,
+static std::vector<int32_t> Default_8x8_Inter  = {10, 14, 14, 20, 20, 20, 24, 24, 24, 24, 27, 27, 27, 30, 30, 34,
                                                  9, 13, 13, 15, 13, 15, 17, 17, 17, 17, 19, 19, 19, 19, 19, 21,
                                                  24, 24, 24, 24, 25, 25, 25, 25, 25, 25, 25, 27, 27, 27, 27, 27,
                                                  27, 28, 28, 28, 28, 28, 30, 30, 30, 30, 32, 32, 32, 33, 33, 35
@@ -377,13 +377,6 @@ bool H264Deserialize::DeserializeVuiSyntax(H26xBinaryReader::ptr br, H264VuiSynt
                 return false;
             }
         }
-        else
-        {
-            // Hint : Otherwise (nal_hrd_parameters_present_flag is equal to 0), BitRate[ SchedSelIdx ] and CpbSize[ SchedSelIdx ] 
-            // are inferred as specified in subclause E.2.2 for NAL HRD parameters.
-            vui->nal_hrd_parameters = std::make_shared<H264HrdSyntax>();
-            // TODO
-        }
         br->U(1, vui->vcl_hrd_parameters_present_flag);
         if (vui->vcl_hrd_parameters_present_flag)
         {
@@ -617,7 +610,14 @@ bool H264Deserialize::DeserializeSpsSyntax(H26xBinaryReader::ptr br, H264SpsSynt
                             }
                             if (sps->UseDefaultScalingMatrix4x4Flag[i] == 1)
                             {
-                                // TODO
+                                if (i < 3)
+                                {
+                                    sps->ScalingList4x4[i] = Default_4x4_Intra;
+                                }
+                                else
+                                {
+                                    sps->ScalingList4x4[i] = Default_4x4_Inter;
+                                }
                             }
                         }
                         else
@@ -628,7 +628,62 @@ bool H264Deserialize::DeserializeSpsSyntax(H26xBinaryReader::ptr br, H264SpsSynt
                             }
                             if (sps->UseDefaultScalingMatrix8x8Flag[i] == 1)
                             {
-                                // TODO
+                                if (i % 2 == 0)
+                                {
+                                    sps->ScalingList8x8[i - 6] = Default_8x8_Intra;
+                                }
+                                else
+                                {
+                                    sps->ScalingList8x8[i - 6] = Default_8x8_Inter;
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        switch (i)
+                        {
+                            // 4x4
+                            case 0:
+                            {
+                                sps->ScalingList4x4[i] = Default_4x4_Intra;
+                                break;
+                            }
+                            case 3:
+                            {
+                                sps->ScalingList4x4[i] = Default_4x4_Inter;
+                                break;
+                            }
+                            case 1:
+                            case 2:
+                            case 4:
+                            case 5:
+                            {
+                                sps->ScalingList4x4[i] = sps->ScalingList4x4[i - 1];
+                                break;
+                            }
+                            // 8x8
+                            case 6:
+                            {
+                                sps->ScalingList8x8[i] = Default_8x8_Intra;
+                                break;
+                            }
+                            case 7:
+                            {
+                                sps->ScalingList8x8[i] = Default_8x8_Inter;
+                                break;
+                            }
+                            case 8:
+                            case 9:
+                            case 10:
+                            case 11:
+                            {
+                                sps->ScalingList8x8[i] = sps->ScalingList8x8[i - 2];
+                                break;
+                            }
+                            default:
+                            {
+                                assert(false);
                             }
                         }
                     }
