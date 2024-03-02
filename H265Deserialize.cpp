@@ -718,6 +718,112 @@ bool H265Deserialize::DeserializeVPSSyntax(H26xBinaryReader::ptr br, H265VPSSynt
     }
 }
 
+bool H265Deserialize::DeserializeSeiMessageSyntax(H26xBinaryReader::ptr br, H265VPSSyntax::ptr vps, H265SpsSyntax::ptr sps, H265VuiSyntax::ptr vui, H265HrdSyntax::ptr hrd, H265SeiMessageSyntax::ptr sei)
+{
+    // See also : 7.3.5 Supplemental enhancement information message syntax
+    try
+    {
+        uint8_t ff_byte = 0;
+        
+        do
+        {
+            br->U(8, ff_byte);
+            sei->payloadType += ff_byte;
+        } while (ff_byte == 0xFF);
+
+        do
+        {
+            br->U(8, ff_byte);
+            sei->payloadSize += ff_byte;
+        } while (ff_byte == 0xFF);
+
+        // See also : D.2.1 General SEI message syntax
+        switch (sei->payloadSize) 
+        {
+            case H265SeiPaylodType::MMP_H265_SEI_PIC_TIMING:
+            {
+                sei->pt = std::make_shared<H265SeiPicTimingSyntax>();
+                if (!DeserializeSeiPicTimingSyntax(br, sps, vui, hrd, sei->pt))
+                {
+                    return false;
+                }
+                break;
+            }
+            case H265SeiPaylodType::MMP_H265_SEI_RECOVERY_POINT:
+            {
+                sei->rp = std::make_shared<H265SeiRecoveryPointSyntax>();
+                if (!DeserializeSeiRecoveryPointSyntax(br, sei->rp))
+                {
+                    return false;
+                }
+                break;
+            }
+            case H265SeiPaylodType::MMP_H265_SEI_ACTIVE_PARAMETER_SETS:
+            {
+                sei->aps = std::make_shared<H265SeiActiveParameterSetsSyntax>();
+                if (!DeserializeSeiActiveParameterSetsSyntax(br, vps, sei->aps))
+                {
+                    assert(false);
+                }
+                break;
+            }
+            case H265SeiPaylodType::MMP_H265_SEI_DECODED_PICTURE_HASH:
+            {
+                sei->dph = std::make_shared<H265SeiDecodedPictureHashSyntax>();
+                if (!DeserializeSeiDecodedPictureHash(br, sps, sei->dph))
+                {
+                    return false;
+                }                
+                break;
+            }
+            case H265SeiPaylodType::MMP_H265_SEI_TIME_CODE:
+            {
+                sei->tc = std::make_shared<H265SeiTimeCodeSyntax>();
+                if (!DeserializeSeiTimeCodeSyntax(br, sei->tc))
+                {
+                    return false;
+                }
+                break;
+            }
+            case H265SeiPaylodType::MMP_H265_SEI_MASTER_DISPLAY_COLOUR_VOLUME:
+            {
+                sei->mdcv = std::make_shared<H265MasteringDisplayColourVolumeSyntax>();
+                if (!DeserializeSeiMasteringDisplayColourVolumeSyntax(br, sei->mdcv))
+                {
+                    return false;
+                }
+                break;
+            }
+            case H265SeiPaylodType::MMP_H265_SEI_CONTENT_LIGHT_LEVEL_INFORMATION:
+            {
+                sei->clli = std::make_shared<H265ContentLightLevelInformationSyntax>();
+                if (!DeserializeSeiContentLightLevelInformationSyntax(br, sei->clli))
+                {
+                    return false;
+                }
+                break;
+            }
+            case H265SeiPaylodType::MMP_H265_SEI_CONTENT_COLOUR_VOLUME:
+            {
+                sei->ccv = std::make_shared<H265ContentColourVolumeSyntax>();
+                if (!DeserializeSeiContentColourVolumeSyntax(br, sei->ccv))
+                {
+                    return false;
+                }
+                break;
+            }
+            default:
+                br->Skip(sei->payloadSize * 8);
+                break;
+        }
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
 bool H265Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H265NalUnitHeaderSyntax::ptr nal,  H265SliceHeaderSyntax::ptr slice)
 {
     // See also : ITU-T H.265 (2021) - 7.3.6.1 General slice segment header syntax
@@ -768,6 +874,12 @@ bool H265Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
                 br->U(1, slice->slice_reserved_flag[i]);
             }
             br->UE(slice->slice_type);
+            {
+                // 0 - B (B slice)
+                // 1 - P (P slice)
+                // 2 - I (I slice)
+                MPP_H26X_SYNTAXT_STRICT_CHECK(slice->slice_type<=2, "[slice] slice_type out of range", return false);
+            }
             if (pps->output_flag_present_flag)
             {
                 br->U(1, slice->pic_output_flag);
@@ -1539,7 +1651,7 @@ bool H265Deserialize::DeserializeSeiDecodedPictureHash(H26xBinaryReader::ptr br,
     }
 }
 
-bool H265Deserialize::DeserializeSeiPicTimingSyntax(H26xBinaryReader::ptr br, H265VuiSyntax::ptr vui, H265HrdSyntax::ptr hrd, H264SeiPicTimingSyntax::ptr pt)
+bool H265Deserialize::DeserializeSeiPicTimingSyntax(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265VuiSyntax::ptr vui, H265HrdSyntax::ptr hrd, H265SeiPicTimingSyntax::ptr pt)
 {
     // See also : ITU-T H.265 (2021) - D.2.3 Picture timing SEI message syntax
     try
@@ -1564,6 +1676,10 @@ bool H265Deserialize::DeserializeSeiPicTimingSyntax(H26xBinaryReader::ptr br, H2
             )
             {
                 br->UE(pt->num_decoding_units_minus1);
+                {
+                    // Hint : The value of num_decoding_units_minus1 shall be in the range of 0 to PicSizeInCtbsY − 1, inclusive.
+                    MPP_H26X_SYNTAXT_STRICT_CHECK(/* pt->num_decoding_units_minus1 >= 0 && */ pt->num_decoding_units_minus1 <= sps->context->PicSizeInCtbsY-1, "[sei] max_bits_per_min_cu_denom out of range", return false);
+                }
                 br->U(1, pt->du_common_cpb_removal_delay_flag);
                 if (pt->du_common_cpb_removal_delay_flag)
                 {
@@ -1581,6 +1697,22 @@ bool H265Deserialize::DeserializeSeiPicTimingSyntax(H26xBinaryReader::ptr br, H2
                 }
             }
         }
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
+bool H265Deserialize::DeserializeSeiRecoveryPointSyntax(H26xBinaryReader::ptr br, H265SeiRecoveryPointSyntax::ptr rp)
+{
+    // See also : ITU-T H.265 (2021) - D.2.8 Recovery point SEI message syntax
+    try
+    {
+        br->SE(rp->recovery_poc_cnt);
+        br->U(1, rp->exact_match_flag);
+        br->U(1, rp->broken_link_flag);
         return true;
     }
     catch (...)
@@ -1617,7 +1749,7 @@ bool H265Deserialize::DeserializeSeiActiveParameterSetsSyntax(H26xBinaryReader::
     }
 }
 
-bool H265Deserialize::DeserializeSeiActiveParameterSetsSyntax(H26xBinaryReader::ptr br, H265SeiTimeCodeSyntax::ptr tc)
+bool H265Deserialize::DeserializeSeiTimeCodeSyntax(H26xBinaryReader::ptr br, H265SeiTimeCodeSyntax::ptr tc)
 {
     // See also : ITU-T H.265 (2021) - D.2.27 Time code SEI message syntax
     try
@@ -1678,6 +1810,86 @@ bool H265Deserialize::DeserializeSeiActiveParameterSetsSyntax(H26xBinaryReader::
             if (tc->time_offset_length[i] > 0)
             {
                 br->I(tc->time_offset_length[i], tc->time_offset_value[i]);
+            }
+        }
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
+bool H265Deserialize::DeserializeSeiMasteringDisplayColourVolumeSyntax(H26xBinaryReader::ptr br, H265MasteringDisplayColourVolumeSyntax::ptr mpcv)
+{
+    // See also : ITU-T H.265 (2021) - D.2.28 Mastering display colour volume SEI message syntax
+    try
+    {
+        for (size_t c=0; c<3; c++)
+        {
+            br->U(16, mpcv->display_primaries_x[c]);
+            br->U(16, mpcv->display_primaries_y[c]);
+        }
+        br->U(16, mpcv->white_point_x);
+        br->U(16, mpcv->white_point_y);
+        br->U(32, mpcv->max_display_mastering_luminance);
+        br->U(32, mpcv->min_display_mastering_luminance);
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
+bool H265Deserialize::DeserializeSeiContentLightLevelInformationSyntax(H26xBinaryReader::ptr br, H265ContentLightLevelInformationSyntax::ptr clli)
+{
+    // See also : ITU-T H.265 (2021) - D.2.35 Content light level information SEI message syntax
+    try
+    {
+        br->U(16, clli->max_content_light_level);
+        br->U(16, clli->max_pic_average_light_level);
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
+bool H265Deserialize::DeserializeSeiContentColourVolumeSyntax(H26xBinaryReader::ptr br, H265ContentColourVolumeSyntax::ptr ccv)
+{
+    // See also : ITU-T H.265 (2021) - D.2.40 Content colour volume SEI message syntax
+    try
+    {
+        br->U(1, ccv->ccv_cancel_flag);
+        if (!ccv->ccv_cancel_flag)
+        {
+            br->U(1, ccv->ccv_persistence_flag);
+            br->U(1, ccv->ccv_primaries_present_flag);
+            br->U(1, ccv->ccv_min_luminance_value_present_flag);
+            br->U(1, ccv->ccv_max_luminance_value_present_flag);
+            br->U(1, ccv->ccv_avg_luminance_value_present_flag);
+            br->U(2, ccv->ccv_reserved_zero_2bits);
+            if (ccv->ccv_primaries_present_flag)
+            {
+                for (size_t c=0; c<3; c++)
+                {
+                    br->I(32, ccv->ccv_primaries_x[c]);
+                    br->I(32, ccv->ccv_primaries_y[c]);
+                }
+            }
+            if (ccv->ccv_min_luminance_value_present_flag)
+            {
+                br->U(32, ccv->ccv_min_luminance_value);
+            }
+            if (ccv->ccv_max_luminance_value_present_flag)
+            {
+                br->U(32, ccv->ccv_max_luminance_value);
+            }
+            if (ccv->ccv_avg_luminance_value_present_flag)
+            {
+                br->U(32, ccv->ccv_avg_luminance_value);
             }
         }
         return true;

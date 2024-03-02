@@ -71,6 +71,21 @@ enum H265SliceType
 };
 
 /**
+ * @sa ITU-T H.265 (2021) - D.2.1 General SEI message syntax
+ */
+enum H265SeiPaylodType
+{
+    MMP_H265_SEI_PIC_TIMING = 1,
+    MMP_H265_SEI_RECOVERY_POINT = 6,
+    MMP_H265_SEI_ACTIVE_PARAMETER_SETS = 129,
+    MMP_H265_SEI_DECODED_PICTURE_HASH = 132,
+    MMP_H265_SEI_TIME_CODE = 136,
+    MMP_H265_SEI_MASTER_DISPLAY_COLOUR_VOLUME = 137,
+    MMP_H265_SEI_CONTENT_LIGHT_LEVEL_INFORMATION = 144,
+    MMP_H265_SEI_CONTENT_COLOUR_VOLUME = 149
+};
+
+/**
  * @sa ITU-T H.265 (2021) - 7.3.7 Short-term reference picture set syntax
  */
 class H265StRefPicSetSyntax
@@ -878,13 +893,13 @@ public:
 /**
  * @brief ITU-T H.265 (2021) - D.2.3 Picture timing SEI message syntax
  */
-class H264SeiPicTimingSyntax
+class H265SeiPicTimingSyntax
 {
 public:
-    using ptr = std::shared_ptr<H264SeiPicTimingSyntax>;
+    using ptr = std::shared_ptr<H265SeiPicTimingSyntax>;
 public:
-    H264SeiPicTimingSyntax();
-    ~H264SeiPicTimingSyntax() = default;
+    H265SeiPicTimingSyntax();
+    ~H265SeiPicTimingSyntax() = default;
 public:
     uint8_t  pic_struct;
     uint8_t  source_scan_type;
@@ -897,6 +912,22 @@ public:
     uint32_t du_common_cpb_removal_delay_increment_minus1;
     std::vector<uint32_t> num_nalus_in_du_minus1;
     std::vector<uint32_t> du_cpb_removal_delay_increment_minus1;
+};
+
+/**
+ * @brief ITU-T H.265 (2021) - D.2.8 Recovery point SEI message syntax
+ */
+class H265SeiRecoveryPointSyntax
+{
+public:
+    using ptr = std::shared_ptr<H265SeiRecoveryPointSyntax>;
+public:
+    H265SeiRecoveryPointSyntax();
+    ~H265SeiRecoveryPointSyntax() = default;
+public:
+    int32_t recovery_poc_cnt;
+    uint8_t exact_match_flag;
+    uint8_t broken_link_flag;
 };
 
 /**
@@ -964,6 +995,68 @@ public:
     std::vector<int32_t>  time_offset_value;
 };
 
+/**
+ * @brief ITU-T H.265 (2021) - D.2.28 Mastering display colour volume SEI message syntax
+ */
+class H265MasteringDisplayColourVolumeSyntax
+{
+public:
+    using ptr = std::shared_ptr<H265MasteringDisplayColourVolumeSyntax>;
+public:
+    H265MasteringDisplayColourVolumeSyntax();
+    ~H265MasteringDisplayColourVolumeSyntax() = default;
+public:
+    uint16_t display_primaries_x[3];
+    uint16_t display_primaries_y[3];
+    uint16_t white_point_x;
+    uint16_t white_point_y;
+    uint32_t max_display_mastering_luminance;
+    uint32_t min_display_mastering_luminance;
+};
+
+/**
+ * @brief ITU-T H.265 (2021) - D.2.35 Content light level information SEI message syntax
+ */
+class H265ContentLightLevelInformationSyntax
+{
+public:
+    using ptr = std::shared_ptr<H265ContentLightLevelInformationSyntax>;
+public:
+    H265ContentLightLevelInformationSyntax();
+    ~H265ContentLightLevelInformationSyntax() = default;
+public:
+    uint16_t max_content_light_level;
+    uint16_t max_pic_average_light_level;
+};
+
+/**
+ * @brief ITU-T H.265 (2021) - D.2.40 Content colour volume SEI message syntax
+ */
+class H265ContentColourVolumeSyntax
+{
+public:
+    using ptr = std::shared_ptr<H265ContentColourVolumeSyntax>;
+public:
+    H265ContentColourVolumeSyntax();
+    ~H265ContentColourVolumeSyntax() = default;
+public:
+    uint8_t  ccv_cancel_flag;
+    uint8_t  ccv_persistence_flag;
+    uint8_t  ccv_primaries_present_flag;
+    uint8_t  ccv_min_luminance_value_present_flag;
+    uint8_t  ccv_max_luminance_value_present_flag;
+    uint8_t  ccv_avg_luminance_value_present_flag;
+    uint8_t  ccv_reserved_zero_2bits;
+    int32_t  ccv_primaries_x[3];
+    int32_t  ccv_primaries_y[3];
+    uint32_t ccv_min_luminance_value;
+    uint32_t ccv_max_luminance_value;
+    uint32_t ccv_avg_luminance_value;
+};
+
+/**
+ * @brief ITU-T H.265 (2021) - 7.3.5 Supplemental enhancement information message syntax
+ */
 class H265SeiMessageSyntax
 {
 public:
@@ -975,10 +1068,14 @@ public:
     uint64_t payloadType;
     uint64_t payloadSize;
 public:
+    H265SeiPicTimingSyntax::ptr pt;
+    H265SeiRecoveryPointSyntax::ptr rp;
     H265SeiDecodedPictureHashSyntax::ptr dph;
-    H264SeiPicTimingSyntax::ptr pt;
     H265SeiActiveParameterSetsSyntax::ptr aps;
     H265SeiTimeCodeSyntax::ptr tc;
+    H265MasteringDisplayColourVolumeSyntax::ptr mdcv;
+    H265ContentLightLevelInformationSyntax::ptr clli;
+    H265ContentColourVolumeSyntax::ptr ccv;
 };
 
 /**
