@@ -37,6 +37,7 @@ public:
     bool DeserializePpsSyntax(H26xBinaryReader::ptr br, H265PpsSyntax::ptr pps);
     bool DeserializeSpsSyntax(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps);
     bool DeserializeVPSSyntax(H26xBinaryReader::ptr br, H265VPSSyntax::ptr vps);
+    bool DeserializeSeiMessageSyntax(H26xBinaryReader::ptr br, H265VPSSyntax::ptr vps, H265SpsSyntax::ptr sps, H265VuiSyntax::ptr vui, H265HrdSyntax::ptr hrd, H265SeiMessageSyntax::ptr sei);
     bool DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H265NalUnitHeaderSyntax::ptr nal, H265SliceHeaderSyntax::ptr slice);
 private: /* pps */
     bool DeserializePps3dSyntax(H26xBinaryReader::ptr br, H265PpsSyntax::ptr pps, H265Pps3dSyntax::ptr pps3d);
@@ -52,9 +53,13 @@ private: /* slice */
     bool DeserializePredWeightTableSyntax(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265SliceHeaderSyntax::ptr slice, H265PredWeightTableSyntax::ptr pwt);
 private: /* sei */
     bool DeserializeSeiDecodedPictureHash(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265SeiDecodedPictureHashSyntax::ptr dph);
-    bool DeserializeSeiPicTimingSyntax(H26xBinaryReader::ptr br, H265VuiSyntax::ptr vui, H265HrdSyntax::ptr hrd, H264SeiPicTimingSyntax::ptr pt);
+    bool DeserializeSeiPicTimingSyntax(H26xBinaryReader::ptr br,  H265SpsSyntax::ptr sps, H265VuiSyntax::ptr vui, H265HrdSyntax::ptr hrd, H265SeiPicTimingSyntax::ptr pt);
+    bool DeserializeSeiRecoveryPointSyntax(H26xBinaryReader::ptr br, H265SeiRecoveryPointSyntax::ptr rp);
     bool DeserializeSeiActiveParameterSetsSyntax(H26xBinaryReader::ptr br, H265VPSSyntax::ptr vps, H265SeiActiveParameterSetsSyntax::ptr aps);
-    bool DeserializeSeiActiveParameterSetsSyntax(H26xBinaryReader::ptr br, H265SeiTimeCodeSyntax::ptr tc);
+    bool DeserializeSeiTimeCodeSyntax(H26xBinaryReader::ptr br, H265SeiTimeCodeSyntax::ptr tc);
+    bool DeserializeSeiMasteringDisplayColourVolumeSyntax(H26xBinaryReader::ptr br, H265MasteringDisplayColourVolumeSyntax::ptr mpcv);
+    bool DeserializeSeiContentLightLevelInformationSyntax(H26xBinaryReader::ptr br, H265ContentLightLevelInformationSyntax::ptr clli);
+    bool DeserializeSeiContentColourVolumeSyntax(H26xBinaryReader::ptr br, H265ContentColourVolumeSyntax::ptr ccv);
 private:
     bool DeserializeHrdSyntax(H26xBinaryReader::ptr br, uint8_t commonInfPresentFlag, uint32_t maxNumSubLayersMinus, H265HrdSyntax::ptr hrd);
     bool DeserializeSubLayerHrdSyntax(H26xBinaryReader::ptr br, uint32_t subLayerId, H265HrdSyntax::ptr hrd, H265SubLayerHrdSyntax::ptr slHrd);

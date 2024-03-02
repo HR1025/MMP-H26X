@@ -455,7 +455,7 @@ H265SliceHeaderSyntax::H265SliceHeaderSyntax()
     slice_segment_header_extension_length = 0;
 }
 
-H264SeiPicTimingSyntax::H264SeiPicTimingSyntax()
+H265SeiPicTimingSyntax::H265SeiPicTimingSyntax()
 {
     pic_struct = 0;
     source_scan_type = 0;
@@ -466,6 +466,13 @@ H264SeiPicTimingSyntax::H264SeiPicTimingSyntax()
     num_decoding_units_minus1 = 0;
     du_common_cpb_removal_delay_flag = 0;
     du_common_cpb_removal_delay_increment_minus1 = 0;
+}
+
+H265SeiRecoveryPointSyntax::H265SeiRecoveryPointSyntax()
+{
+    recovery_poc_cnt = 0;
+    exact_match_flag = 0;
+    broken_link_flag = 0;
 }
 
 H265SeiDecodedPictureHashSyntax::H265SeiDecodedPictureHashSyntax()
@@ -484,6 +491,38 @@ H265SeiActiveParameterSetsSyntax::H265SeiActiveParameterSetsSyntax()
 H265SeiTimeCodeSyntax::H265SeiTimeCodeSyntax()
 {
     num_clock_ts = 0;
+}
+
+H265MasteringDisplayColourVolumeSyntax::H265MasteringDisplayColourVolumeSyntax()
+{
+    memset(display_primaries_x, 0, sizeof(uint16_t) * 3);
+    memset(display_primaries_y, 0, sizeof(uint16_t) * 3);
+    white_point_x = 0;
+    white_point_y = 0;
+    max_display_mastering_luminance = 0;
+    min_display_mastering_luminance = 0;
+}
+
+H265ContentLightLevelInformationSyntax::H265ContentLightLevelInformationSyntax()
+{
+    max_content_light_level = 0;
+    max_pic_average_light_level = 0;
+}
+
+H265ContentColourVolumeSyntax::H265ContentColourVolumeSyntax()
+{
+    ccv_cancel_flag = 0;
+    ccv_persistence_flag = 0;
+    ccv_primaries_present_flag = 0;
+    ccv_min_luminance_value_present_flag = 0;
+    ccv_max_luminance_value_present_flag = 0;
+    ccv_avg_luminance_value_present_flag = 0;
+    ccv_reserved_zero_2bits = 0;
+    memset(ccv_primaries_x, 0, sizeof(int32_t) * 3);
+    memset(ccv_primaries_y, 0, sizeof(int32_t) * 3);
+    ccv_min_luminance_value = 0;
+    ccv_max_luminance_value = 0;
+    ccv_avg_luminance_value = 0;
 }
 
 H265SeiMessageSyntax::H265SeiMessageSyntax()
