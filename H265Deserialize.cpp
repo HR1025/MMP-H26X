@@ -1,9 +1,10 @@
 #include "H265Deserialize.h"
 
 #include <cmath>
+#include <memory>
+#include <vector>
 #include <cassert>
 #include <cstdint>
-#include <memory>
 #include <algorithm>
 
 #include "H265Common.h"
@@ -13,6 +14,33 @@ namespace Mmp
 {
 namespace Codec
 {
+
+// Table 7-5 – Specification of default values of ScalingList[ 0 ][ matrixId ][ i ] with i = 0..15
+static std::vector<int32_t>  Default_4x4_ScalingList = {16, 16, 16, 16,
+                                                        16, 16, 16, 16,
+                                                        16, 16, 16, 16,
+                                                        16, 16, 16, 16
+                                                        };
+// Table 7-4 – Specification of matrixId according to sizeId, prediction mode and colour component
+// Table 7-6 – Specification of default values of ScalingList[ 1..3 ][ matrixId ][ i ] with i = 0..63
+static std::vector<int32_t>  Default_8x8_ScalingListIntra = {16, 16, 16, 16, 16, 16, 16, 16,
+                                                             16, 16, 17, 16, 17, 16, 17, 18,
+                                                            17, 18, 18, 17, 18, 21, 19, 20,
+                                                            21, 20, 19, 21, 24, 22, 22, 24,
+                                                            24, 22, 22, 24, 25, 25, 27, 30,
+                                                            27, 25, 25, 29, 31, 35, 35, 31,
+                                                            29, 36, 41, 44, 41, 36, 47, 54, 
+                                                            54, 47, 65, 70, 65, 88, 88, 115
+                                                            };
+static std::vector<int32_t>  Default_8x8_ScalingListInter = {16, 16, 16, 16, 16, 16, 16, 16,
+                                                             16, 16, 17, 17, 17, 17, 17, 18,
+                                                            18, 18, 18, 18, 18, 20, 20, 20,
+                                                            20, 20, 20, 20, 24, 24, 24, 24,
+                                                            24, 24, 24, 24, 25, 25, 25, 25,
+                                                            25, 25, 25, 28, 28, 28, 28, 28,
+                                                            28, 33, 33, 33, 33, 33, 41, 41,
+                                                            41, 41, 54, 54, 54, 71, 71, 91
+                                                            };
 
 static uint32_t GetCurrRpsIdx(H265SpsSyntax::ptr sps, H265SliceHeaderSyntax::ptr slice)
 {
@@ -483,6 +511,15 @@ bool H265Deserialize::DeserializeSpsSyntax(H26xBinaryReader::ptr br, H265SpsSynt
             br->UE(sps->sps_max_num_reorder_pics[i]);
             br->UE(sps->sps_max_latency_increase_plus1[i]);
         }
+        if (!sps->sps_sub_layer_ordering_info_present_flag)
+        {
+            for (uint32_t i=0; i<sps->sps_max_sub_layers_minus1; i++)
+            {
+                sps->sps_max_dec_pic_buffering_minus1[i] = sps->sps_max_dec_pic_buffering_minus1[sps->sps_max_sub_layers_minus1];
+                sps->sps_max_num_reorder_pics[i] = sps->sps_max_num_reorder_pics[sps->sps_max_sub_layers_minus1];
+                sps->sps_max_latency_increase_plus1[i] = sps->sps_max_latency_increase_plus1[sps->sps_max_sub_layers_minus1];
+            }
+        }
         br->UE(sps->log2_min_luma_coding_block_size_minus3);
         br->UE(sps->log2_diff_max_min_luma_coding_block_size);
         br->UE(sps->log2_min_luma_transform_block_size_minus2);
@@ -515,6 +552,10 @@ bool H265Deserialize::DeserializeSpsSyntax(H26xBinaryReader::ptr br, H265SpsSynt
             br->U(1, sps->pcm_loop_filter_disabled_flag);
         }
         br->UE(sps->num_short_term_ref_pic_sets);
+        {
+            // Hint :  The value of num_short_term_ref_pic_sets shall be in the range of 0 to 64, inclusive.
+            MPP_H26X_SYNTAXT_STRICT_CHECK(/* sps->num_short_term_ref_pic_sets>=0 && */ sps->num_short_term_ref_pic_sets<=64, "[sps] num_short_term_ref_pic_sets out of range", return false);
+        }
         sps->stpss.resize(sps->num_short_term_ref_pic_sets);
         for (uint32_t i=0; i<sps->num_short_term_ref_pic_sets; i++)
         {
@@ -631,6 +672,10 @@ bool H265Deserialize::DeserializeVPSSyntax(H26xBinaryReader::ptr br, H265VPSSynt
             MPP_H26X_SYNTAXT_STRICT_CHECK(/* vps->vps_max_sub_layers_minus1 >= 0 && */ vps->vps_max_sub_layers_minus1 <= 6, "[vps] vps_max_sub_layers_minus1 out of range", return false);
         }
         br->U(1, vps->vps_temporal_id_nesting_flag);
+        {
+            // Hint : When vps_max_sub_layers_minus1 is equal to 0, vps_temporal_id_nesting_flag shall be equal to 1.
+            MPP_H26X_SYNTAXT_STRICT_CHECK(vps->vps_max_sub_layers_minus1 == 0 && vps->vps_temporal_id_nesting_flag == 1, "[vps] vps_temporal_id_nesting_flag shall be 1", return false);
+        }
         br->U(16, vps->vps_reserved_0xffff_16bits);
         MPP_H26X_SYNTAXT_STRICT_CHECK(vps->vps_reserved_0xffff_16bits==0xFFFF, "[vps] vps_reserved_0xffff_16bits is not equal to 0xffff", return false);
         vps->ptl = std::make_shared<H265PTLSyntax>();
@@ -649,12 +694,15 @@ bool H265Deserialize::DeserializeVPSSyntax(H26xBinaryReader::ptr br, H265VPSSynt
             br->UE(vps->vps_max_num_reorder_pics[i]);
             br->UE(vps->vps_max_latency_increase_plus1[i]);
         }
-        for (uint32_t i= 0; i<=(vps->vps_sub_layer_ordering_info_present_flag ? 0 : vps->vps_max_sub_layers_minus1); i++)
+        if (!vps->vps_sub_layer_ordering_info_present_flag)
         {
-            // Hint : vps_max_num_reorder_pics[ vps_max_sub_layers_minus1 ] and vps_max_latency_increase_plus1[ vps_max_sub_layers_minus1 ] apply to all sub-layers ...
-            vps->vps_max_dec_pic_buffering_minus1[i] = vps->vps_max_dec_pic_buffering_minus1[vps->vps_sub_layer_ordering_info_present_flag ? 0 : vps->vps_max_sub_layers_minus1];
-            vps->vps_max_num_reorder_pics[i] = vps->vps_max_num_reorder_pics[vps->vps_sub_layer_ordering_info_present_flag ? 0 : vps->vps_max_sub_layers_minus1];
-            vps->vps_max_latency_increase_plus1[i] = vps->vps_max_latency_increase_plus1[vps->vps_sub_layer_ordering_info_present_flag ? 0 : vps->vps_max_sub_layers_minus1];
+            for (uint32_t i= 0; i<vps->vps_max_sub_layers_minus1; i++)
+            {
+                // Hint : vps_max_num_reorder_pics[ vps_max_sub_layers_minus1 ] and vps_max_latency_increase_plus1[ vps_max_sub_layers_minus1 ] apply to all sub-layers ...
+                vps->vps_max_dec_pic_buffering_minus1[i] = vps->vps_max_dec_pic_buffering_minus1[vps->vps_max_sub_layers_minus1];
+                vps->vps_max_num_reorder_pics[i] = vps->vps_max_num_reorder_pics[vps->vps_max_sub_layers_minus1];
+                vps->vps_max_latency_increase_plus1[i] = vps->vps_max_latency_increase_plus1[vps->vps_max_sub_layers_minus1];
+            }
         }
         br->U(6, vps->vps_max_layer_id);
         br->UE(vps->vps_num_layer_sets_minus1);
@@ -691,6 +739,11 @@ bool H265Deserialize::DeserializeVPSSyntax(H26xBinaryReader::ptr br, H265VPSSynt
                 if (i>0)
                 {
                     br->U(1, vps->cprms_present_flag[i]);
+                }
+                else
+                {
+                    // Hint : cprms_present_flag[ 0 ] is inferred to be equal to 1.
+                    vps->cprms_present_flag[i] = 1;
                 }
                 vps->hrds[i] = std::make_shared<H265HrdSyntax>();
                 if (!DeserializeHrdSyntax(br, vps->cprms_present_flag[i], vps->vps_max_sub_layers_minus1, vps->hrds[i]))
@@ -1905,6 +1958,14 @@ bool H265Deserialize::DeserializeHrdSyntax(H26xBinaryReader::ptr br, uint8_t com
     // See also : ITU-T H.265 (2021) - E.2.2 HRD parameters syntax
     try
     {
+        {
+            // Hint : When the initial_cpb_removal_delay_length_minus1 syntax element is not present, it is inferred to be equal to 23.
+            hrd->initial_cpb_removal_delay_length_minus1 = 23;
+            // Hint : When the au_cpb_removal_delay_length_minus1 syntax element is not present, it is inferred to be equal to 23.
+            hrd->au_cpb_removal_delay_length_minus1 = 23;
+            // Hint : When the dpb_output_delay_length_minus1 syntax element is not present, it is inferred to be equal to 23.
+            hrd->dpb_output_delay_length_minus1 = 23;
+        }
         if (commonInfPresentFlag)
         {
             br->U(1, hrd->nal_hrd_parameters_present_flag);
@@ -1949,8 +2010,6 @@ bool H265Deserialize::DeserializeHrdSyntax(H26xBinaryReader::ptr br, uint8_t com
                 // Hint : When fixed_pic_rate_general_flag[ i ] is equal to 1, the value of fixed_pic_rate_within_cvs_flag[ i ] is inferred to be equal to 1.
                 hrd->fixed_pic_rate_within_cvs_flag[i] = 1;
             }
-            // To check condition of elemental_duration_in_tc_minus1
-            // See also : https://github.com/FFmpeg/FFmpeg/commit/ded4478b8b6dbe939113b38df53778972e3af70e (FFmpeg 6.x)
             if (hrd->fixed_pic_rate_general_flag[i])
             {
                 br->UE(hrd->elemental_duration_in_tc_minus1[i]);
@@ -2032,11 +2091,31 @@ bool H265Deserialize::DeserializePTLSyntax(H26xBinaryReader::ptr br, uint8_t pro
         if (profilePresentFlag)
         {
             br->U(2, ptl->general_profile_space);
+            {
+                // Hint : Decoders shall ignore the CVS when general_profile_space is not equal to 0.
+                MPP_H26X_SYNTAXT_STRICT_CHECK(ptl->general_profile_space == 0, "[ptl] general_profile_space out of range", return false);
+            }
             br->U(1, ptl->general_tier_flag);
             br->U(5, ptl->general_profile_idc);
             for (uint32_t j=0; j<32; j++)
             {
                 br->U(1, ptl->general_profile_compatibility_flag[j]);
+            }
+            // Hint : when general_profile_space is equal to 0, indicates a profile to which the CVS conforms as specified in Annex A.
+            {
+                // Reference : MediaSDK.git (https://github.com/Intel-Media-SDK/MediaSDK.git - 7a72de33a15d6e7cdb842b12b901a003f7154f0a) 
+                //             umc_h265_bitstream_headers.cpp -> void H265HeadersBitstream::parseProfileTier(H265PTL *ptl)
+                if (ptl->general_profile_idc)
+                {
+                    for (uint32_t j=0; j<32; j++)
+                    {
+                        if (ptl->general_profile_compatibility_flag[j] == 1)
+                        {
+                            ptl->general_profile_idc = j;
+                            break;
+                        }
+                    }
+                }
             }
             br->U(1, ptl->general_progressive_source_flag);
             br->U(1, ptl->general_interlaced_source_flag);
@@ -2258,12 +2337,21 @@ bool H265Deserialize::DeserializeScalingListDataSyntax(H26xBinaryReader::ptr br,
     // See also : ITU-T H.265 (2021) - 7.3.4 Scaling list data syntax
     try
     {
+        // See also : Table 7-3 – Specification of sizeId
+        //
+        //            Size of quantization matrix     |     sizeId
+        //            4x4                             |       0
+        //            8x8                             |       1
+        //            16x16                           |       2
+        //            32x32                           |       3
+        //
+        constexpr uint32_t sizeIdNum = 4; 
         int32_t scaling_list_delta_coef = 0;
-        sld->scaling_list_pred_mode_flag.resize(4);
-        sld->scaling_list_pred_matrix_id_delta.resize(4);
-        sld->scaling_list_dc_coef_minus8.resize(4);
-        sld->ScalingList.resize(4);
-        for (uint32_t sizeId = 0; sizeId < 4; sizeId++)
+        sld->scaling_list_pred_mode_flag.resize(sizeIdNum);
+        sld->scaling_list_pred_matrix_id_delta.resize(sizeIdNum);
+        sld->scaling_list_dc_coef_minus8.resize(sizeIdNum);
+        sld->ScalingList.resize(sizeIdNum);
+        for (uint32_t sizeId = 0; sizeId < sizeIdNum; sizeId++)
         {
             sld->scaling_list_pred_mode_flag[sizeId].resize(6);
             sld->scaling_list_pred_matrix_id_delta[sizeId].resize(6);
@@ -2272,7 +2360,7 @@ bool H265Deserialize::DeserializeScalingListDataSyntax(H26xBinaryReader::ptr br,
             for (uint32_t matrixId=0; matrixId<6; matrixId+=(sizeId == 3)?3:1)
             {
                 br->U(1, sld->scaling_list_pred_mode_flag[sizeId][matrixId]);
-                if (sld->scaling_list_pred_mode_flag[sizeId][matrixId])
+                if (!sld->scaling_list_pred_mode_flag[sizeId][matrixId])
                 {
                     br->UE(sld->scaling_list_pred_matrix_id_delta[sizeId][matrixId]);
                 }
@@ -2320,7 +2408,7 @@ bool H265Deserialize::DeserializeStRefPicSetSyntax(H26xBinaryReader::ptr br, H26
             }
             br->U(1, stps->delta_rps_sign);
             br->UE(stps->abs_delta_rps_minus1);
-            uint32_t RefRpsIdx = stRpsIdx - (stps->abs_delta_rps_minus1 + 1);
+            uint32_t RefRpsIdx = stRpsIdx - (stps->abs_delta_rps_minus1 + 1); // (7-59)
             if (sps->stpss.size() < RefRpsIdx || sps->stpss[RefRpsIdx] == nullptr)
             {
                 assert(false);
