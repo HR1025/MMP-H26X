@@ -50,7 +50,7 @@ private: /* sps */
     bool DeserializeVuiSyntax(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265VuiSyntax::ptr vui);
 private: /* slice */
     bool DeserializeRefPicListsModificationSyntax(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265PpsSyntax::ptr pps, H265SliceHeaderSyntax::ptr slice, H265RefPicListsModificationSyntax::ptr rplm);
-    bool DeserializePredWeightTableSyntax(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265SliceHeaderSyntax::ptr slice, H265PredWeightTableSyntax::ptr pwt);
+    bool DeserializePredWeightTableSyntax(H26xBinaryReader::ptr br, H265NalUnitHeaderSyntax::ptr header, H265SpsSyntax::ptr sps, H265SliceHeaderSyntax::ptr slice, H265PredWeightTableSyntax::ptr pwt);
 private: /* sei */
     bool DeserializeSeiDecodedPictureHash(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265SeiDecodedPictureHashSyntax::ptr dph);
     bool DeserializeSeiPicTimingSyntax(H26xBinaryReader::ptr br,  H265SpsSyntax::ptr sps, H265VuiSyntax::ptr vui, H265HrdSyntax::ptr hrd, H265SeiPicTimingSyntax::ptr pt);
@@ -60,6 +60,8 @@ private: /* sei */
     bool DeserializeSeiMasteringDisplayColourVolumeSyntax(H26xBinaryReader::ptr br, H265MasteringDisplayColourVolumeSyntax::ptr mpcv);
     bool DeserializeSeiContentLightLevelInformationSyntax(H26xBinaryReader::ptr br, H265ContentLightLevelInformationSyntax::ptr clli);
     bool DeserializeSeiContentColourVolumeSyntax(H26xBinaryReader::ptr br, H265ContentColourVolumeSyntax::ptr ccv);
+private:
+    void DecodingProcessForPictureOrderCount(H265NalUnitHeaderSyntax::ptr header, H265SpsSyntax::ptr sps, H265SliceHeaderSyntax::ptr slice, H265PictureContext::ptr picture);
 private:
     bool DeserializeHrdSyntax(H26xBinaryReader::ptr br, uint8_t commonInfPresentFlag, uint32_t maxNumSubLayersMinus, H265HrdSyntax::ptr hrd);
     bool DeserializeSubLayerHrdSyntax(H26xBinaryReader::ptr br, uint32_t subLayerId, H265HrdSyntax::ptr hrd, H265SubLayerHrdSyntax::ptr slHrd);
@@ -71,6 +73,7 @@ private:
     bool DeserializeDeltaDltSyntax(H26xBinaryReader::ptr br, H265Pps3dSyntax::ptr pps3d, H265DeltaDltSyntax::ptr dd);
 private:
     H265ContextSyntax::ptr _contex;
+    H265PictureContext::ptr _prevTid0Pic;
 };
 
 } // namespace Codec

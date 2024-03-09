@@ -37,7 +37,7 @@ enum H265NaluType
     MMP_H265_NALU_TYPE_RASL_R             = 9,
     MMP_H265_NALU_TYPE_RSV_VCL_N10        = 10,
     MMP_H265_NALU_TYPE_RSV_VCL_N12        = 12,
-    MMP_H265_NALU_TYPE_RSV_VCL_N14T       = 14,
+    MMP_H265_NALU_TYPE_RSV_VCL_N14        = 14,
     MMP_H265_NALU_TYPE_RSV_VCL_R11        = 11,
     MMP_H265_NALU_TYPE_RSV_VCL_R13        = 13,
     MMP_H265_NALU_TYPE_RSV_VCL_R15        = 15,
@@ -1133,6 +1133,23 @@ public:
 public:
     std::unordered_map<uint32_t, uint32_t> PocLsbLt;
     std::unordered_map<uint32_t, uint8_t>  UsedByCurrPicLt;
+};
+
+/**
+ * @sa ITU-T H.265 (2021) - 8.3 Slice decoding process
+ */
+class H265PictureContext
+{
+public:
+    using ptr = std::shared_ptr<H265PictureContext>;
+public:
+    H265PictureContext() = default;
+    virtual ~H265PictureContext() = default;
+public:
+    H265SliceHeaderSyntax::ptr slice;
+public: /* 8.3.1 Decoding process for picture order count */
+    int64_t PicOrderCntVal;
+    int64_t PicOrderCntMsb;
 };
 
 } // namespace Codec
