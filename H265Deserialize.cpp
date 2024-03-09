@@ -10,6 +10,89 @@
 #include "H265Common.h"
 #include "H26xUltis.h"
 
+// Quick Note
+//
+// (1) reference picture set (RPS):
+//     A set of reference pictures associated with a picture, consisting of all reference
+//     pictures that are prior to the associated picture in decoding order, that may be used for inter prediction of the
+//     associated picture or any picture following the associated picture in decoding order.
+// (2) coded video sequence (CVS):
+//     A sequence of access units that consists, in decoding order, of an IRAP access
+//     unit with NoRaslOutputFlag equal to 1, followed by zero or more access units that are not IRAP access units
+//     with NoRaslOutputFlag equal to 1, including all subsequent access units up to but not including any subsequent
+//     access unit that is an IRAP access unit with NoRaslOutputFlag equal to 1.
+//
+
+// Abbreviations and acronyms
+//
+// CB    Coding Block
+// BPB   Bitstream Partition Buffer
+// CLVS  Coded Layer-wise Video Sequenc
+// CPB   Coded Picture Buffer
+// CRA   Clean Random Access
+// CTB   Coding Tree Block
+// CTU   Coding Tree Unit
+// CVS   Coded Video Sequence
+// IRAP  Intra Random Access Point
+// RADL  Random Access Decodable Leading (Picture)
+// RASL  Random Access Skipped Leading (Picture)
+// SLNR  Sub-Layer Non-Reference (Picture)
+// 
+
+namespace Mmp
+{
+namespace Codec
+{
+
+static bool IsIRAP(uint8_t nal_unit_type)
+{
+    return nal_unit_type == H265NaluType::MMP_H265_NALU_TYPE_RSV_IRAP_VCL22 || nal_unit_type == MMP_H265_NALU_TYPE_RSV_IRAP_VCL23;
+}
+
+static bool IsRASL(uint8_t nal_unit_type)
+{
+    switch (nal_unit_type) 
+    {
+        case H265NaluType::MMP_H265_NALU_TYPE_RADL_N:
+        case H265NaluType::MMP_H265_NALU_TYPE_RADL_R:
+        case H265NaluType::MMP_H265_NALU_TYPE_BLA_W_RADL:
+        case H265NaluType::MMP_H265_NALU_TYPE_IDR_W_RADL:
+            return true;
+        default:
+            return false;
+    }
+}
+
+static bool IsRADL(uint8_t nal_unit_type)
+{
+    switch (nal_unit_type) 
+    {
+        case H265NaluType::MMP_H265_NALU_TYPE_RADL_N:
+        case H265NaluType::MMP_H265_NALU_TYPE_RADL_R:
+        case H265NaluType::MMP_H265_NALU_TYPE_BLA_W_RADL:
+        case H265NaluType::MMP_H265_NALU_TYPE_IDR_W_RADL:
+            return true;
+        default:
+            return false;
+    } 
+}
+
+static bool IsSLNR(uint8_t nal_unit_type)
+{
+    switch (nal_unit_type) 
+    {
+        case H265NaluType::MMP_H265_NALU_TYPE_RSV_VCL_N10:
+        case H265NaluType::MMP_H265_NALU_TYPE_RSV_VCL_N12:
+        case H265NaluType::MMP_H265_NALU_TYPE_RSV_VCL_N14:
+            return true;
+        default:
+            return false;
+    }  
+}
+
+} // namespace Codec
+} // namespace Mmp
+
 namespace Mmp
 {
 namespace Codec
@@ -912,11 +995,11 @@ bool H265Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
             if (pps->dependent_slice_segments_enabled_flag)
             {
                 br->U(1, slice->dependent_slice_segment_flag);
-                br->U((uint32_t)std::ceil(std::log2(sps->context->PicSizeInCtbsY)), slice->slice_segment_address);
-                {
-                    // Hint : The value of slice_segment_address shall be in the range of 0 to PicSizeInCtbsY − 1, inclusive
-                    MPP_H26X_SYNTAXT_STRICT_CHECK(/* slice->slice_segment_address>=0 && */ slice->slice_segment_address<=sps->context->PicSizeInCtbsY, "[slice] slice_segment_address out of range", return false);
-                }
+            }
+            br->U((uint32_t)std::ceil(std::log2(sps->context->PicSizeInCtbsY)), slice->slice_segment_address);
+            {
+                // Hint : The value of slice_segment_address shall be in the range of 0 to PicSizeInCtbsY − 1, inclusive
+                MPP_H26X_SYNTAXT_STRICT_CHECK(/* slice->slice_segment_address>=0 && */ slice->slice_segment_address<=sps->context->PicSizeInCtbsY, "[slice] slice_segment_address out of range", return false);
             }
         }
         if (!slice->dependent_slice_segment_flag)
@@ -1068,7 +1151,7 @@ bool H265Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
                         )
                         {
                             slice->pwt = std::make_shared<H265PredWeightTableSyntax>();
-                            if (!DeserializePredWeightTableSyntax(br, sps, slice, slice->pwt))
+                            if (!DeserializePredWeightTableSyntax(br, nal, sps, slice, slice->pwt))
                             {
                                 assert(false);
                                 return false;
@@ -1635,13 +1718,17 @@ bool H265Deserialize::DeserializeRefPicListsModificationSyntax(H26xBinaryReader:
     }
 }
 
-bool H265Deserialize::DeserializePredWeightTableSyntax(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, H265SliceHeaderSyntax::ptr slice, H265PredWeightTableSyntax::ptr pwt)
+bool H265Deserialize::DeserializePredWeightTableSyntax(H26xBinaryReader::ptr br, H265NalUnitHeaderSyntax::ptr header, H265SpsSyntax::ptr sps, H265SliceHeaderSyntax::ptr slice, H265PredWeightTableSyntax::ptr pwt)
 {
     // See also : ITU-T H.265 (2021) - 7.3.6.3 Weighted prediction parameters syntax
     try
     {
         uint8_t ChromaArrayType = sps->separate_colour_plane_flag == 0 ? sps->chroma_format_idc : 0;
         br->UE(pwt->luma_log2_weight_denom);
+        {
+            // Hint : The value of luma_log2_weight_denom shall be in the range of 0 to 7, inclusive.
+            MPP_H26X_SYNTAXT_STRICT_CHECK(/* pwt->luma_log2_weight_denom >= 0 && */ pwt->luma_log2_weight_denom <= 7, "[pwt] luma_log2_weight_denom out of range", return false);
+        }
         if (ChromaArrayType != 0)
         {
             br->SE(pwt->delta_chroma_log2_weight_denom);
@@ -2391,6 +2478,10 @@ bool H265Deserialize::DeserializeScalingListDataSyntax(H26xBinaryReader::ptr br,
     }
 }
 
+/**
+ * @param[in] stRpsIdx : short term reference picture set index
+ * @sa        ITU-T H.265 (2021) - 7.4.8 Short-term reference picture set semantics
+ */
 bool H265Deserialize::DeserializeStRefPicSetSyntax(H26xBinaryReader::ptr br, H265SpsSyntax::ptr sps, uint32_t stRpsIdx, H265StRefPicSetSyntax::ptr stps)
 {
     // See also : ITU-T H.265 (2021) - 7.3.7 Short-term reference picture set syntax
@@ -2405,6 +2496,10 @@ bool H265Deserialize::DeserializeStRefPicSetSyntax(H26xBinaryReader::ptr br, H26
             if (stRpsIdx == sps->num_short_term_ref_pic_sets)
             {
                 br->UE(stps->delta_idx_minus1);
+                {
+                    // Hint : The value of delta_idx_minus1 shall be in the range of 0 to stRpsIdx − 1, inclusive.
+                    MPP_H26X_SYNTAXT_STRICT_CHECK(/* stps->delta_idx_minus1>=0 && */ stps->delta_idx_minus1<=stRpsIdx-1, "[stps] delta_idx_minus1 out of range", return false);
+                }
             }
             br->U(1, stps->delta_rps_sign);
             br->UE(stps->abs_delta_rps_minus1);
@@ -2422,6 +2517,11 @@ bool H265Deserialize::DeserializeStRefPicSetSyntax(H26xBinaryReader::ptr br, H26
                 if (!stps->used_by_curr_pic_flag[j])
                 {
                     br->U(1, stps->use_delta_flag[j]);
+                }
+                else
+                {
+                    // Hint : When use_delta_flag[ j ] is not present, its value is inferred to be equal to 1.
+                    stps->use_delta_flag[j] = 1;
                 }
             }
         }
@@ -2602,6 +2702,63 @@ bool H265Deserialize::DeserializeDeltaDltSyntax(H26xBinaryReader::ptr br, H265Pp
     {
         return false;
     }
+}
+
+void H265Deserialize::DecodingProcessForPictureOrderCount(H265NalUnitHeaderSyntax::ptr header, H265SpsSyntax::ptr sps, H265SliceHeaderSyntax::ptr slice, H265PictureContext::ptr picture)
+{
+    int64_t prevPicOrderCntLsb = 0, prevPicOrderCntMsb = 0;
+    int16_t TemporalId = header->nuh_temporal_id_plus1 - 1; // (7-1)
+    
+    // determine prevPicOrderCntLsb and prevPicOrderCntMsb (if needed)
+    if (!IsIRAP(header->nal_unit_type))
+    {
+        if(!_prevTid0Pic)
+        {
+            assert(_prevTid0Pic);
+            return;
+        }
+        prevPicOrderCntLsb = (int64_t)_prevTid0Pic->slice->slice_pic_order_cnt_lsb;
+        prevPicOrderCntMsb = _prevTid0Pic->PicOrderCntMsb;
+    }
+    // determine PicOrderCntMsb （8-1)
+    {
+        if (IsIRAP(header->nal_unit_type))
+        {
+            picture->PicOrderCntMsb = 0;
+        }
+        else
+        {
+            int64_t MaxPicOrderCntLsb = (int64_t)(1 << (sps->log2_max_pic_order_cnt_lsb_minus4 + 4)); // (7-8)
+            if ((slice->slice_pic_order_cnt_lsb < prevPicOrderCntLsb) &&
+                ((prevPicOrderCntLsb - slice->slice_pic_order_cnt_lsb) >= (MaxPicOrderCntLsb/2))
+            )
+            {
+                picture->PicOrderCntMsb = prevPicOrderCntMsb + MaxPicOrderCntLsb;
+            }
+            else if ((slice->slice_pic_order_cnt_lsb > prevPicOrderCntLsb) &&
+                ((slice->slice_pic_order_cnt_lsb - prevPicOrderCntLsb) > (MaxPicOrderCntLsb/2))
+            )
+            {
+                picture->PicOrderCntMsb = prevPicOrderCntMsb - MaxPicOrderCntLsb;
+            }
+            else
+            {
+                picture->PicOrderCntMsb = prevPicOrderCntMsb;
+            }
+        }
+    }
+    // determine PicOrderCntVal (8-2)
+    {
+        picture->PicOrderCntVal = picture->PicOrderCntMsb + slice->slice_pic_order_cnt_lsb;
+    }
+    // determine prevTid0Pic
+    if (TemporalId == 0 && 
+        !IsRASL(header->nal_unit_type) && !IsRADL(header->nal_unit_type) && !IsSLNR(header->nal_unit_type)
+    )
+    {
+        _prevTid0Pic = picture;
+    }
+    picture->slice = slice;
 }
 
 } // namespace Codec

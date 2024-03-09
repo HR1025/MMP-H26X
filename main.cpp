@@ -238,7 +238,7 @@ static std::string H265NalUintTypeToStr(uint32_t nal_unit_type)
         case H265NaluType::MMP_H265_NALU_TYPE_RASL_R: return "rasl r";
         case H265NaluType::MMP_H265_NALU_TYPE_RSV_VCL_N10: return "rsv vcl n10";
         case H265NaluType::MMP_H265_NALU_TYPE_RSV_VCL_N12: return "rsv vcl n12";
-        case H265NaluType::MMP_H265_NALU_TYPE_RSV_VCL_N14T: return "src vcl n14t";
+        case H265NaluType::MMP_H265_NALU_TYPE_RSV_VCL_N14: return "src vcl n14";
         case H265NaluType::MMP_H265_NALU_TYPE_RSV_VCL_R11: return "rsv vcl r11";
         case H265NaluType::MMP_H265_NALU_TYPE_RSV_VCL_R13: return "rsv vcl r13";
         case H265NaluType::MMP_H265_NALU_TYPE_RSV_VCL_R15: return "rsv vcl r15";
