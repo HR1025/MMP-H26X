@@ -6,6 +6,8 @@
 // Module:  H264
 // 
 
+#pragma once
+
 #include "H264Common.h"
 
 #include <functional>
