@@ -253,7 +253,7 @@ void H26xBinaryReader::MoveNextByte()
 
 bool H26xBinaryReader::Eof()
 {
-    return _reader->Eof();
+    return _reader->Eof() && _curBitPos == 8;
 }
 
 void H26xBinaryReader::BeginNalUnit()
@@ -386,7 +386,7 @@ bool H26xBinaryReader::more_data_in_byte_stream()
     // specified as follows:
     // - If more data follow in the byte stream, the return value of more_data_in_byte_stream( ) is equal to TRUE.
     // - Otherwise, the return value of more_data_in_byte_stream( ) is equal to FALSE.
-    return !_reader->Eof();
+    return !(_reader->Eof() && _curBitPos == 8);
 }
 
 void H26xBinaryReader::byte_alignment()

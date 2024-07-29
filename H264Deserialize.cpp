@@ -723,6 +723,11 @@ bool H264Deserialize::DeserializeSpsSyntax(H26xBinaryReader::ptr br, H264SpsSynt
                 }
             }
         }
+        else
+        {
+            // Hint : When chroma_format_idc is not present, it shall be inferred to be equal to 1 (4:2:0 chroma format).
+            sps->chroma_format_idc = 1;
+        }
         br->UE(sps->log2_max_frame_num_minus4);
         {
             // Hint : The value of log2_max_frame_num_minus4 shall be in the range of 0 to 12, inclusive.
@@ -779,7 +784,10 @@ bool H264Deserialize::DeserializeSpsSyntax(H26xBinaryReader::ptr br, H264SpsSynt
                 return false;
             }
         }
-        br->rbsp_trailing_bits();
+        if (!br->Eof())
+        {
+            br->rbsp_trailing_bits();
+        }
         FillH264SpsContext(sps);
         _contex->spsSet[sps->seq_parameter_set_id] = sps;
         _contex->sps = sps;
@@ -1345,7 +1353,10 @@ bool H264Deserialize::DeserializePpsSyntax(H26xBinaryReader::ptr br, H264PpsSynt
             pps->ScalingList4x4 = sps->ScalingList4x4;
             pps->ScalingList8x8 = sps->ScalingList8x8;
         }
-        br->rbsp_trailing_bits();
+        if (!br->Eof())
+        {
+            br->rbsp_trailing_bits();
+        }
         _contex->ppsSet[pps->pic_parameter_set_id] = pps;
         _contex->pps = pps;
         return true;
