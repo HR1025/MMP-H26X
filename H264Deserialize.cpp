@@ -542,7 +542,7 @@ bool H264Deserialize::DeserializeSeiSyntax(H26xBinaryReader::ptr br, H264SeiSynt
                 break;
             }
             default:
-                br->Skip(sei->payloadSize * 8);
+                br->Skip((size_t)(sei->payloadSize * 8));
                 break;
         }
         return true;
@@ -1334,19 +1334,19 @@ bool H264Deserialize::DeserializePpsSyntax(H26xBinaryReader::ptr br, H264PpsSynt
                         }
                     }
                 }
-                br->SE(pps->second_chroma_qp_index_offset);
-                {
-                    // Hint : second_chroma_qp_index_offset specifies the offset that shall be added to QPY and QSY for addressing the table of 
-                    // QPC values for the Cr chroma component. The value of second_chroma_qp_index_offset shall be in the range of −12 to 
-                    // +12, inclusive.
-                    MPP_H26X_SYNTAXT_STRICT_CHECK(pps->second_chroma_qp_index_offset >= -12 && pps->second_chroma_qp_index_offset <= 12, "[sps] second_chroma_qp_index_offset out of range", return false);
-                }
             }
-            else
+            br->SE(pps->second_chroma_qp_index_offset);
             {
-                // Hint : When second_chroma_qp_index_offset is not present, it shall be inferred to be equal to chroma_qp_index_offset
-                pps->second_chroma_qp_index_offset = pps->chroma_qp_index_offset;
+                // Hint : second_chroma_qp_index_offset specifies the offset that shall be added to QPY and QSY for addressing the table of 
+                // QPC values for the Cr chroma component. The value of second_chroma_qp_index_offset shall be in the range of −12 to 
+                // +12, inclusive.
+                MPP_H26X_SYNTAXT_STRICT_CHECK(pps->second_chroma_qp_index_offset >= -12 && pps->second_chroma_qp_index_offset <= 12, "[sps] second_chroma_qp_index_offset out of range", return false);
             }
+        }
+        else
+        {
+            // Hint : When second_chroma_qp_index_offset is not present, it shall be inferred to be equal to chroma_qp_index_offset
+            pps->second_chroma_qp_index_offset = pps->chroma_qp_index_offset;
         }
         if (!pps->pic_scaling_matrix_present_flag)
         {

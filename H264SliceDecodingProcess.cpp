@@ -19,11 +19,24 @@ namespace Codec
 #endif /* ENABLE_MMP_SD_DEBUG */
 
 #if ENABLE_MMP_SD_DEBUG
+
+#if defined(_WIN32)
+#define MPP_H264_SD_LOG(fmt, ...)  do {\
+                                          char buf[512] = {0};\
+                                          sprintf_s(buf, fmt, ## __VA_ARGS__);\
+                                          H26x_LOG_INFO << buf << H26x_LOG_TERMINATOR;\
+                                      } while(0);
+
+#else
+
 #define MPP_H264_SD_LOG(fmt, ...)  do {\
                                           char buf[512] = {0};\
                                           sprintf(buf, fmt, ## __VA_ARGS__);\
                                           H26x_LOG_INFO << buf << H26x_LOG_TERMINATOR;\
                                       } while(0);
+
+#endif
+
 #else
 #define MPP_H264_SD_LOG(fmt, ...) 
 #endif /* ENABLE_MMP_SD_DEBUG */ 
@@ -172,7 +185,7 @@ static void UnMarkUsedForShortTermReference(H264PictureContext::cache pictures, 
                 // Hint : not support for now
                 assert(false);
             }
-            MPP_H264_SD_LOG("[RF] UnMarkUsedForShortTermReference, PicNum(%ld) FrameNum(%d)", _picture->PicNum, _picture->FrameNum);
+            MPP_H264_SD_LOG("[RF] UnMarkUsedForShortTermReference, PicNum(%lld) FrameNum(%d)", _picture->PicNum, _picture->FrameNum);
             // Hint : 参考 FFmpeg 6.x 以及 openh264 , 此处应当只 umark 一个 short term picture, 按照 DPB 的顺序
             //        同时 ISO 中也存在 `a short-term reference picture` 而非 `all short-term refernce pictures`
             break;
@@ -481,7 +494,7 @@ void H264SliceDecodingProcess::DecodeH264PictureOrderCountType1(H264PictureConte
             expectedPicOrderCnt = picOrderCntCycleCnt * ExpectedDeltaPerPicOrderCntCycle;
             for (int64_t i=0; i<=frameNumInPicOrderCntCycle; i++)
             {
-                expectedPicOrderCnt = expectedPicOrderCnt + sps->offset_for_ref_frame[i];
+                expectedPicOrderCnt = expectedPicOrderCnt + sps->offset_for_ref_frame[(size_t)i];
             }
         }
         else
@@ -1061,7 +1074,7 @@ void H264SliceDecodingProcess::ModificationProcessForReferencePictureLists(H264S
                     {
                         RefPicListX[cIdx] = RefPicListX[cIdx-1];
                     }
-                    MPP_H264_SD_LOG("[MRPL] refIdxLX(%d) abs_diff_pic_num_minus1(%d) picNumLX(%ld)", refIdxLX, abs_diff_pic_num_minus1, picNumLX);
+                    MPP_H264_SD_LOG("[MRPL] refIdxLX(%d) abs_diff_pic_num_minus1(%d) picNumLX(%lld)", refIdxLX, abs_diff_pic_num_minus1, picNumLX);
                     RefPicListX[refIdxLX++] = FindPictureByPicNum(pictures, picNumLX); // short-term reference picture with PicNum equal to picNumLX
                     uint32_t nIdx = refIdxLX;
                     for (uint32_t cIdx = refIdxLX; cIdx <= num_ref_idx_lX_active_minus1+1; cIdx++)
@@ -1316,7 +1329,7 @@ void H264SliceDecodingProcess::SlidingWindowDecodedReferencePictureMarkingProces
                     __picture = _picture;
                 }
             }
-            MPP_H264_SD_LOG("[DRPM] Mark short term picture to unsued FrameNum(%d) FrameNumWrap(%ld)", __picture->FrameNum, __picture->FrameNumWrap);
+            MPP_H264_SD_LOG("[DRPM] Mark short term picture to unsued FrameNum(%d) FrameNumWrap(%lld)", __picture->FrameNum, __picture->FrameNumWrap);
             __picture->referenceFlag = H264PictureContext::unused_for_reference;
             if (__picture->field_pic_flag == 1)
             {
@@ -1419,7 +1432,7 @@ void H264SliceDecodingProcess::AdaptiveMemoryControlDecodedReferencePicutreMarki
             {
                 uint32_t max_long_term_frame_idx_plus1 = slice->drpm->memory_management_control_operations_datas[index++].max_long_term_frame_idx_plus1;
                 int64_t MaxLongTermFrameIdx = max_long_term_frame_idx_plus1 == 0 ? no_long_term_frame_indices : max_long_term_frame_idx_plus1 - 1;
-                MPP_H264_SD_LOG("[MM] mmco(%d) max_long_term_frame_idx_plus1(%d) MaxLongTermFrameIdx(%ld)", memory_management_control_operation, max_long_term_frame_idx_plus1, MaxLongTermFrameIdx);
+                MPP_H264_SD_LOG("[MM] mmco(%d) max_long_term_frame_idx_plus1(%d) MaxLongTermFrameIdx(%lld)", memory_management_control_operation, max_long_term_frame_idx_plus1, MaxLongTermFrameIdx);
                 for (auto _picture : pictures)
                 {
                     if (_picture->referenceFlag & H264PictureContext::used_for_long_term_reference && _picture->LongTermFrameIdx > max_long_term_frame_idx_plus1 - 1)
@@ -1546,7 +1559,7 @@ void H264SliceDecodingProcess::SliceDecodingProcess(H264NalSyntax::ptr nal)
 #ifdef ENABLE_MMP_SD_DEBUG
             static uint64_t count = 0;
 #endif /* ENABLE_MMP_SD_DEBUG */
-            MPP_H264_SD_LOG("[DP] %ld nal_unit_type(%s-%d) slice_type(%s-%d) frame_num(%ld) nal_ref_idc(%d)", 
+            MPP_H264_SD_LOG("[DP] %lld nal_unit_type(%s-%d) slice_type(%s-%d) frame_num(%lld) nal_ref_idc(%d)", 
                 count++,
                 H264NaluTypeToStr(nal->nal_unit_type).c_str(),
                 nal->nal_unit_type, 
