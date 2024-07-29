@@ -542,7 +542,7 @@ bool H264Deserialize::DeserializeSeiSyntax(H26xBinaryReader::ptr br, H264SeiSynt
                 break;
             }
             default:
-                br->Skip(sei->payloadSize * 8);
+                br->Skip((size_t)(sei->payloadSize * 8));
                 break;
         }
         return true;
@@ -723,6 +723,11 @@ bool H264Deserialize::DeserializeSpsSyntax(H26xBinaryReader::ptr br, H264SpsSynt
                 }
             }
         }
+        else
+        {
+            // Hint : When chroma_format_idc is not present, it shall be inferred to be equal to 1 (4:2:0 chroma format).
+            sps->chroma_format_idc = 1;
+        }
         br->UE(sps->log2_max_frame_num_minus4);
         {
             // Hint : The value of log2_max_frame_num_minus4 shall be in the range of 0 to 12, inclusive.
@@ -779,7 +784,10 @@ bool H264Deserialize::DeserializeSpsSyntax(H26xBinaryReader::ptr br, H264SpsSynt
                 return false;
             }
         }
-        br->rbsp_trailing_bits();
+        if (!br->Eof())
+        {
+            br->rbsp_trailing_bits();
+        }
         FillH264SpsContext(sps);
         _contex->spsSet[sps->seq_parameter_set_id] = sps;
         _contex->sps = sps;
@@ -1326,26 +1334,29 @@ bool H264Deserialize::DeserializePpsSyntax(H26xBinaryReader::ptr br, H264PpsSynt
                         }
                     }
                 }
-                br->SE(pps->second_chroma_qp_index_offset);
-                {
-                    // Hint : second_chroma_qp_index_offset specifies the offset that shall be added to QPY and QSY for addressing the table of 
-                    // QPC values for the Cr chroma component. The value of second_chroma_qp_index_offset shall be in the range of −12 to 
-                    // +12, inclusive.
-                    MPP_H26X_SYNTAXT_STRICT_CHECK(pps->second_chroma_qp_index_offset >= -12 && pps->second_chroma_qp_index_offset <= 12, "[sps] second_chroma_qp_index_offset out of range", return false);
-                }
             }
-            else
+            br->SE(pps->second_chroma_qp_index_offset);
             {
-                // Hint : When second_chroma_qp_index_offset is not present, it shall be inferred to be equal to chroma_qp_index_offset
-                pps->second_chroma_qp_index_offset = pps->chroma_qp_index_offset;
+                // Hint : second_chroma_qp_index_offset specifies the offset that shall be added to QPY and QSY for addressing the table of 
+                // QPC values for the Cr chroma component. The value of second_chroma_qp_index_offset shall be in the range of −12 to 
+                // +12, inclusive.
+                MPP_H26X_SYNTAXT_STRICT_CHECK(pps->second_chroma_qp_index_offset >= -12 && pps->second_chroma_qp_index_offset <= 12, "[sps] second_chroma_qp_index_offset out of range", return false);
             }
+        }
+        else
+        {
+            // Hint : When second_chroma_qp_index_offset is not present, it shall be inferred to be equal to chroma_qp_index_offset
+            pps->second_chroma_qp_index_offset = pps->chroma_qp_index_offset;
         }
         if (!pps->pic_scaling_matrix_present_flag)
         {
             pps->ScalingList4x4 = sps->ScalingList4x4;
             pps->ScalingList8x8 = sps->ScalingList8x8;
         }
-        br->rbsp_trailing_bits();
+        if (!br->Eof())
+        {
+            br->rbsp_trailing_bits();
+        }
         _contex->ppsSet[pps->pic_parameter_set_id] = pps;
         _contex->pps = pps;
         return true;

@@ -253,7 +253,7 @@ void H26xBinaryReader::MoveNextByte()
 
 bool H26xBinaryReader::Eof()
 {
-    return _reader->Eof();
+    return _reader->Eof() && _curBitPos == 8;
 }
 
 void H26xBinaryReader::BeginNalUnit()
@@ -289,7 +289,19 @@ bool H26xBinaryReader::more_rbsp_data()
     //        
     if (_rbspEndByte > _reader->Tell()) // cache hint
     {
-        return true;
+        // * 可能最后一个字节完全是 rbsp_trailing_bits (1 rbsp_stop_one_bit + 7 rbsp_alignment_zero_bit)
+        if (_curBitPos == 8 && (_rbspEndByte == _reader->Tell() + 1))
+        {
+            ReadOneByteAuto();
+            if (_curValue == 0x80)
+            {
+                return false;
+            }
+        }
+        else
+        {
+            return true;
+        }
     }
     else if (_reader->Tell() == _rbspEndByte) // reach end of rbsp
     {
@@ -372,7 +384,7 @@ void H26xBinaryReader::rbsp_trailing_bits()
     uint8_t rbsp_alignment_zero_bit;
     U(1, rbsp_stop_one_bit);
     assert(rbsp_stop_one_bit == 1);
-    while (!(_curBitPos == 0 || _curBitPos == 8))
+    while (!(_curBitPos == 0 || _curBitPos == 8) && more_data_in_byte_stream())
     {
         U(1, rbsp_alignment_zero_bit);
         // assert(rbsp_alignment_zero_bit == 0);
@@ -386,7 +398,7 @@ bool H26xBinaryReader::more_data_in_byte_stream()
     // specified as follows:
     // - If more data follow in the byte stream, the return value of more_data_in_byte_stream( ) is equal to TRUE.
     // - Otherwise, the return value of more_data_in_byte_stream( ) is equal to FALSE.
-    return !_reader->Eof();
+    return !(_reader->Eof() && _curBitPos == 8);
 }
 
 void H26xBinaryReader::byte_alignment()
