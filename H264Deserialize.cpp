@@ -689,44 +689,42 @@ bool H264Deserialize::DeserializeSpsSyntax(H26xBinaryReader::ptr br, H264SpsSynt
                     }
                 }
             }
-            else
-            {
-                sps->chroma_format_idc = 1;
-                sps->separate_colour_plane_flag = 0;
-                sps->bit_depth_luma_minus8 = 0;
-                sps->bit_depth_chroma_minus8 = 0;
-                // (7-8)
-                // Flat_4x4_16[ k ] = 16, with k = 0..15
-                {
-                    sps->ScalingList4x4.resize(6); /* 0..5 */
-                    for (size_t i=0; i<6; i++)
-                    {
-                        sps->ScalingList4x4[i].resize(16);
-                        for (size_t j=0; j<16; j++)
-                        {
-                            sps->ScalingList4x4[i][j] = 16;
-                        }
-                    }
-                }
-                // (7-9)
-                // Flat_8x8_16[ k ] = 16, with k = 0..63
-                {
-                    sps->ScalingList8x8.resize(6); /* 6..11 */
-                    for (size_t i=0; i<6; i++)
-                    {
-                        sps->ScalingList8x8[i].resize(64);
-                        for (size_t j=0; j<64; j++)
-                        {
-                            sps->ScalingList8x8[i][j] = 16;
-                        }
-                    }
-                }
-            }
         }
         else
         {
-            // Hint : When chroma_format_idc is not present, it shall be inferred to be equal to 1 (4:2:0 chroma format).
             sps->chroma_format_idc = 1;
+        }
+        if (!sps->seq_scaling_matrix_present_flag)
+        {
+            sps->separate_colour_plane_flag = 0;
+            sps->bit_depth_luma_minus8 = 0;
+            sps->bit_depth_chroma_minus8 = 0;
+            // (7-8)
+            // Flat_4x4_16[ k ] = 16, with k = 0..15
+            {
+                sps->ScalingList4x4.resize(6); /* 0..5 */
+                for (size_t i=0; i<6; i++)
+                {
+                    sps->ScalingList4x4[i].resize(16);
+                    for (size_t j=0; j<16; j++)
+                    {
+                        sps->ScalingList4x4[i][j] = 16;
+                    }
+                }
+            }
+            // (7-9)
+            // Flat_8x8_16[ k ] = 16, with k = 0..63
+            {
+                sps->ScalingList8x8.resize(6); /* 6..11 */
+                for (size_t i=0; i<6; i++)
+                {
+                    sps->ScalingList8x8[i].resize(64);
+                    for (size_t j=0; j<64; j++)
+                    {
+                        sps->ScalingList8x8[i][j] = 16;
+                    }
+                }
+            }
         }
         br->UE(sps->log2_max_frame_num_minus4);
         {
