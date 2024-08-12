@@ -208,7 +208,6 @@ bool H264Deserialize::DeserializeNalSyntax(H26xBinaryReader::ptr br, H264NalSynt
                 nal->sei = std::make_shared<H264SeiSyntax>();
                 if (!DeserializeSeiSyntax(br, nal->sei))
                 {
-                    assert(false);
                     return false;
                 }
                 break;
