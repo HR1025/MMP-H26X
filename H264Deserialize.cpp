@@ -813,7 +813,7 @@ bool H264Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
         br->UE(slice->pic_parameter_set_id);
         MPP_H26X_SYNTAXT_STRICT_CHECK(_contex->ppsSet.count(slice->pic_parameter_set_id), "[slice] missing pps", return false);
         pps = _contex->ppsSet[slice->pic_parameter_set_id];
-        MPP_H26X_SYNTAXT_STRICT_CHECK(_contex->ppsSet.count(pps->seq_parameter_set_id), "[slice] missing sps", return false);
+        MPP_H26X_SYNTAXT_STRICT_CHECK(_contex->spsSet.count(pps->seq_parameter_set_id), "[slice] missing sps", return false);
         sps = _contex->spsSet[pps->seq_parameter_set_id];
         if (sps->separate_colour_plane_flag == 1)
         {
