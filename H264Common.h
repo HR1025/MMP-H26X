@@ -94,24 +94,24 @@ enum H264NaluType
  */
 enum H264MmcoType
 {
-    MMP_H264_MMOO_0 = 0,    // End memory_management_control_operation 
+    MMP_H264_MMCO_0 = 0,    // End memory_management_control_operation 
                             // syntax element loop
-    MMP_H264_MMOO_1 = 1,    // Mark a short-term reference picture as
+    MMP_H264_MMCO_1 = 1,    // Mark a short-term reference picture as
                             // "unused for reference"
-    MMP_H264_MMOO_2 = 2,    // Mark a long-term reference picture as
+    MMP_H264_MMCO_2 = 2,    // Mark a long-term reference picture as
                             // "unused for reference"
-    MMP_H264_MMOO_3 = 3,    // Mark a short-term reference picture as
+    MMP_H264_MMCO_3 = 3,    // Mark a short-term reference picture as
                             // "used for long-term reference" and assign a
                             // long-term frame index to it
-    MMP_H264_MMOO_4 = 4,    // Specify the maximum long-term frame index
+    MMP_H264_MMCO_4 = 4,    // Specify the maximum long-term frame index
                             // and mark all long-term reference pictures
                             // having long-term frame indices greater than
                             // the maximum value as "unused for reference"
-    MMP_H264_MMOO_5 = 5,    // Mark all reference pictures as
+    MMP_H264_MMCO_5 = 5,    // Mark all reference pictures as
                             // "unused for reference" and set the
                             // MaxLongTermFrameIdx variable to
                             // "no long-term frame indices"
-    MMP_H264_MMOO_6 = 6     // Mark the current picture as
+    MMP_H264_MMCO_6 = 6     // Mark the current picture as
                             // "used for long-term reference" and assign a
                             // long-term frame index to it
 };
