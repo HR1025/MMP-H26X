@@ -82,11 +82,11 @@ void H26xBinaryReader::SE(int32_t& value)
     UE(codeNum);
     if (codeNum % 2 == 0)
     {
-        value = -(codeNum >> 1);
+        value = -static_cast<int32_t>(codeNum >> 1);
     }
     else
     {
-        value = (codeNum >> 1) + 1;
+        value = static_cast<int32_t>((codeNum >> 1) + 1);
     }
 }
 
@@ -95,7 +95,7 @@ void H26xBinaryReader::SE(int32_t& value)
                                                 do\
                                                 {\
                                                     ReadOneByteAuto();\
-                                                    size_t readBits = (size_t)bits <= (8 - (size_t)_curBitPos)? bits : (8 - (size_t)_curBitPos);\
+                                                    size_t readBits = bits <= (size_t)(8 - _curBitPos)? bits : (size_t)(8 - (uint8_t)_curBitPos);\
                                                     bits = (size_t)(bits - readBits);\
                                                     value <<= readBits;\
                                                     if (readBits < 8 && !firstFlag)\
@@ -110,7 +110,7 @@ void H26xBinaryReader::SE(int32_t& value)
                                                     {\
                                                         value |= _curValue;\
                                                     }\
-                                                    _curBitPos = _curBitPos + readBits;\
+                                                    _curBitPos = _curBitPos + (uint8_t)readBits;\
                                                     firstFlag = true;\
                                                 } while (bits != 0);
 
