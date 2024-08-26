@@ -305,7 +305,7 @@ bool H26xBinaryReader::more_rbsp_data()
     }
     else if (_reader->Tell() == _rbspEndByte) // reach end of rbsp
     {
-        return false;
+        return _curBitPos == 8 ? false : true;
     }
     else // update _rbspEndByte and try once again
     {
