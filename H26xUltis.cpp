@@ -121,9 +121,9 @@ void FillH265SpsContext(H265SpsSyntax::ptr sps)
     context->MinCbSizeY = 1 << context->MinCbLog2SizeY;
     context->CtbSizeY = 1 << context->CtbLog2SizeY;
     context->PicWidthInMinCbsY = sps->pic_width_in_luma_samples / context->MinCbSizeY;
-    context->PicWidthInCtbsY = std::ceil(sps->pic_width_in_luma_samples / context->CtbSizeY);
+    context->PicWidthInCtbsY = (uint32_t)std::ceil(sps->pic_width_in_luma_samples / context->CtbSizeY);
     context->PicHeightInMinCbsY = sps->pic_height_in_luma_samples / context->MinCbSizeY;
-    context->PicHeightInCtbsY = std::ceil(sps-> pic_height_in_luma_samples / context->CtbSizeY);
+    context->PicHeightInCtbsY = (uint32_t)std::ceil(sps-> pic_height_in_luma_samples / context->CtbSizeY);
     context->PicSizeInMinCbsY = context->PicWidthInMinCbsY * context->PicHeightInMinCbsY;
     context->PicSizeInCtbsY = context->PicWidthInCtbsY * context->PicHeightInCtbsY;
     context->PicWidthInSamplesC = sps->pic_width_in_luma_samples / SubWidthC;

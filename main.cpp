@@ -141,7 +141,7 @@ size_t CacheFileH264ByteReader::Read(void* data, size_t bytes)
     else
     {
         _offset = _ifs.tellg();
-        _ifs.readsome((char*)_buf, kBufSize);
+        _ifs.read((char*)_buf, kBufSize);
         _cur = 0;
         _len = _ifs.gcount(); 
         if (_len == 0) /* eof */
@@ -161,7 +161,7 @@ bool CacheFileH264ByteReader::Seek(size_t offset)
     {
         _ifs.seekg(offset);
         _offset = _ifs.tellg();
-        _ifs.readsome((char*)_buf, kBufSize);
+        _ifs.read((char*)_buf, kBufSize);
         _cur = 0;
         _len = _ifs.gcount(); 
         return _offset == offset;
@@ -170,7 +170,7 @@ bool CacheFileH264ByteReader::Seek(size_t offset)
     {
         _ifs.seekg(offset);
         _offset = _ifs.tellg();
-        _ifs.readsome((char*)_buf, kBufSize);
+        _ifs.read((char*)_buf, kBufSize);
         _cur = 0;
         _len = _ifs.gcount(); 
         return _offset == offset;

@@ -734,7 +734,7 @@ void H264SliceDecodingProcess::InitializationProcessForReferencePictureLists(H26
         {
             return left->LongTermPicNum < right->LongTermPicNum;
         });
-        MPP_H264_SD_LOG("-- shortTermRefPicList(%ld) longTermRefList(%ld)", (uint32_t)shortTermRefPicList.size(), (uint32_t)longTermRefList.size());
+        MPP_H264_SD_LOG("-- shortTermRefPicList(%d) longTermRefList(%d)", (uint32_t)shortTermRefPicList.size(), (uint32_t)longTermRefList.size());
         for (auto& shortTermPicture : shortTermRefPicList)
         {
             _RefPicList0.push_back(shortTermPicture);
@@ -804,7 +804,7 @@ void H264SliceDecodingProcess::InitializationProcessForReferencePictureLists(H26
                     return left->LongTermPicNum < right->LongTermPicNum;
                 });
             }
-            MPP_H264_SD_LOG("-- RefPicList01(%ld) RefPicList02(%ld) RefPicList03(%ld)", (uint32_t)RefPicList01.size(), (uint32_t)RefPicList02.size(), (uint32_t)RefPicList03.size());
+            MPP_H264_SD_LOG("-- RefPicList01(%d) RefPicList02(%d) RefPicList03(%d)", (uint32_t)RefPicList01.size(), (uint32_t)RefPicList02.size(), (uint32_t)RefPicList03.size());
             for (const auto& RefPic : RefPicList01)
             {
                 _RefPicList0.push_back(RefPic);
@@ -869,7 +869,7 @@ void H264SliceDecodingProcess::InitializationProcessForReferencePictureLists(H26
                     return left->LongTermPicNum > right->LongTermPicNum;
                 });
             }
-            MPP_H264_SD_LOG("-- RefPicList11(%ld) RefPicList12(%ld) RefPicList13(%ld)", (uint32_t)RefPicList11.size(), (uint32_t)RefPicList12.size(), (uint32_t)RefPicList13.size());
+            MPP_H264_SD_LOG("-- RefPicList11(%d) RefPicList12(%d) RefPicList13(%d)", (uint32_t)RefPicList11.size(), (uint32_t)RefPicList12.size(), (uint32_t)RefPicList13.size());
             for (const auto& RefPic : RefPicList11)
             {
                 _RefPicList1.push_back(RefPic);
