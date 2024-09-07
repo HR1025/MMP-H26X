@@ -940,13 +940,13 @@ void H264SliceDecodingProcess::InitializationProcessForReferencePictureLists(H26
         {
             ss << "-- (" << i << ") Type(" << refTypeToStr(_RefPicList1[i]->referenceFlag) <<  ") "
                << "FrameNum(" << _RefPicList1[i]->FrameNum << ")";
-            if (_RefPicList0[i]->referenceFlag & H264PictureContext::used_for_short_term_reference)
+            if (_RefPicList1[i]->referenceFlag & H264PictureContext::used_for_short_term_reference)
             {
-                ss << " PicOrderCnt(" << PicOrderCnt(_RefPicList0[i]) << ") PicNum(" << _RefPicList0[i]->PicNum << ")";
+                ss << " PicOrderCnt(" << PicOrderCnt(_RefPicList1[i]) << ") PicNum(" << _RefPicList1[i]->PicNum << ")";
             }
-            else if (_RefPicList0[i]->referenceFlag & H264PictureContext::used_for_long_term_reference)
+            else if (_RefPicList1[i]->referenceFlag & H264PictureContext::used_for_long_term_reference)
             {
-                ss << " LongTermPicNum(" << _RefPicList0[i]->LongTermPicNum << ")";
+                ss << " LongTermPicNum(" << _RefPicList1[i]->LongTermPicNum << ")";
             }
             if (i + 1 != _RefPicList1.size())
             {
