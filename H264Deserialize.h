@@ -67,6 +67,9 @@ private: /* SEI */
     bool DeserializeSeiFramePackingArrangementSyntax(H26xBinaryReader::ptr br, H264SeiFramePackingArrangementSyntax::ptr fpa);
     bool DeserializeSeiAlternativeTransferCharacteristicsSyntax(H26xBinaryReader::ptr br, H264SeiAlternativeTransferCharacteristicsSyntax::ptr atc);
     bool DeserializeAmbientViewingEnvironmentSyntax(H26xBinaryReader::ptr br, H264AmbientViewingEnvironmentSyntax::ptr awe);
+public:
+    bool enableParseSEI = true;
+    bool enableParseSLICE = true;
 private:
     H264ContextSyntax::ptr _contex;
 };
