@@ -192,23 +192,29 @@ bool H264Deserialize::DeserializeNalSyntax(H26xBinaryReader::ptr br, H264NalSynt
             case H264NaluType::MMP_H264_NALU_TYPE_IDR: /* pass through */
             case H264NaluType::MMP_H264_NALU_TYPE_SLICE:
             {
-                // Hint : Slice = Slice header + Slice data + rbsp_trailing_bits()
-                //        only parse slice header and may move to next nal unit
-                nal->slice = std::make_shared<H264SliceHeaderSyntax>();
-                if (!DeserializeSliceHeaderSyntax(br, nal, nal->slice))
+                if (enableParseSLICE)
                 {
-                    assert(false);
-                    return false;
+                    // Hint : Slice = Slice header + Slice data + rbsp_trailing_bits()
+                    //        only parse slice header and may move to next nal unit
+                    nal->slice = std::make_shared<H264SliceHeaderSyntax>();
+                    if (!DeserializeSliceHeaderSyntax(br, nal, nal->slice))
+                    {
+                        assert(false);
+                        return false;
+                    }
+                    br->MoveNextByte();
                 }
-                br->MoveNextByte();
                 break;
             }
             case H264NaluType::MMP_H264_NALU_TYPE_SEI:
             {
-                nal->sei = std::make_shared<H264SeiSyntax>();
-                if (!DeserializeSeiSyntax(br, nal->sei))
+                if (enableParseSEI)
                 {
-                    return false;
+                    nal->sei = std::make_shared<H264SeiSyntax>();
+                    if (!DeserializeSeiSyntax(br, nal->sei))
+                    {
+                        return false;
+                    }
                 }
                 break;
             }
