@@ -1570,6 +1570,7 @@ void H264SliceDecodingProcess::SliceDecodingProcess(H264NalSyntax::ptr nal)
         case H264NaluType::MMP_H264_NALU_TYPE_SLICE:
         {
             H264PictureContext::ptr picture = CreatePictureContext();
+            _curPicture = picture;
             H264SpsSyntax::ptr sps = nullptr;
             H264PpsSyntax::ptr pps = nullptr;
             if (!_ppss.count(nal->slice->pic_parameter_set_id))
@@ -1613,6 +1614,7 @@ void H264SliceDecodingProcess::SliceDecodingProcess(H264NalSyntax::ptr nal)
             {
                 DecodingProcessForReferencePictureListsConstruction(nal->slice, sps, _pictures, picture);
             }
+            OnBeforeDecodeReferencePictureMarkingProcess();
             DecodeReferencePictureMarkingProcess(nal, nal->slice, sps, _pictures, picture, nal->nal_ref_idc);
             OnDecodingEnd();
             picture->id = _curId++;
@@ -1638,7 +1640,7 @@ void H264SliceDecodingProcess::SliceDecodingProcess(H264NalSyntax::ptr nal)
 
 H264PictureContext::ptr H264SliceDecodingProcess::GetCurrentPictureContext()
 {
-    return _prevPicture;
+    return _curPicture;
 }
 
 H264PictureContext::cache H264SliceDecodingProcess::GetAllPictures()
@@ -1659,6 +1661,11 @@ std::vector<H264PictureContext::ptr> H264SliceDecodingProcess::GetRefPicList1()
 H264PictureContext::ptr H264SliceDecodingProcess::CreatePictureContext()
 {
     return std::make_shared<H264PictureContext>();
+}
+
+void H264SliceDecodingProcess::OnBeforeDecodeReferencePictureMarkingProcess()
+{
+
 }
 
 void H264SliceDecodingProcess::OnDecodingBegin()
