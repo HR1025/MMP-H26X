@@ -75,6 +75,7 @@ public:
     std::vector<H264PictureContext::ptr> GetRefPicList1();
 protected:
     virtual H264PictureContext::ptr CreatePictureContext();
+    virtual void OnBeforeDecodeReferencePictureMarkingProcess();
 private:
     using task = std::function<void()>;
 private:
@@ -98,6 +99,7 @@ private:
     void AdaptiveMemoryControlDecodedReferencePicutreMarkingPorcess(H264SliceHeaderSyntax::ptr slice, H264PictureContext::cache pictures, H264PictureContext::ptr picture);
 private:
     H264PictureContext::ptr _prevPicture;
+    H264PictureContext::ptr _curPicture;
 private:
     std::vector<H264PictureContext::ptr> _RefPicList0;
     std::vector<H264PictureContext::ptr> _RefPicList1;
