@@ -1113,7 +1113,7 @@ bool H264Deserialize::DeserializeSpsMvcSyntax(H26xBinaryReader::ptr br, H264SpsM
             }
             br->UE(mvc->num_anchor_refs_l1[i]);
             mvc->anchor_ref_l1[i].resize(mvc->num_anchor_refs_l1[i] + 1);
-            for (int j=0; i<mvc->num_anchor_refs_l1[i]; j++)
+            for (uint32_t j=0; j<mvc->num_anchor_refs_l1[i]; j++)
             {
                 br->UE(mvc->anchor_ref_l1[i][j]);
             }
@@ -1132,7 +1132,7 @@ bool H264Deserialize::DeserializeSpsMvcSyntax(H26xBinaryReader::ptr br, H264SpsM
             }
             br->UE(mvc->num_non_anchor_refs_l1[i]);
             mvc->non_anchor_ref_l1[i].resize(mvc->num_non_anchor_refs_l1[i] + 1);
-            for (int j=0; i<mvc->num_non_anchor_refs_l1[i]; j++)
+            for (uint32_t j=0; j<mvc->num_non_anchor_refs_l1[i]; j++)
             {
                 br->UE(mvc->non_anchor_ref_l1[i][j]);
             }
@@ -1597,7 +1597,7 @@ bool H264Deserialize::DeserializePredictionWeightTableSyntax(H26xBinaryReader::p
                 if (pwt->luma_weight_l1_flag[i])
                 {
                     br->SE(pwt->luma_weight_l1[i]);
-                    br->SE(pwt->luma_weight_l1[i]);
+                    br->SE(pwt->luma_offset_l1[i]);
                 }
                 else
                 {
@@ -1785,13 +1785,13 @@ bool H264Deserialize::DeserializeSeiPictureTimingSyntax(H26xBinaryReader::ptr br
             //
             if (vui->nal_hrd_parameters_present_flag)
             {
-                br->U(vui->nal_hrd_parameters->cpb_removal_delay_length_minus1, pt->cpb_removal_delay);
-                br->U(vui->nal_hrd_parameters->dpb_output_delay_length_minus1 + 1, pt->cpb_removal_delay);
+                br->U(vui->nal_hrd_parameters->cpb_removal_delay_length_minus1 + 1, pt->cpb_removal_delay);
+                br->U(vui->nal_hrd_parameters->dpb_output_delay_length_minus1 + 1, pt->dpb_output_delay);
             }
             else if (vui->vcl_hrd_parameters_present_flag)
             {
-                br->U(vui->vcl_hrd_parameters->cpb_removal_delay_length_minus1, pt->cpb_removal_delay);
-                br->U(vui->vcl_hrd_parameters->dpb_output_delay_length_minus1 + 1, pt->cpb_removal_delay);  
+                br->U(vui->vcl_hrd_parameters->cpb_removal_delay_length_minus1 + 1, pt->cpb_removal_delay);
+                br->U(vui->vcl_hrd_parameters->dpb_output_delay_length_minus1 + 1, pt->dpb_output_delay);  
             }
         }
 
@@ -1926,7 +1926,7 @@ bool H264Deserialize::DeserializeSeiDisplayOrientationSyntax(H26xBinaryReader::p
     try 
     {
         br->U(1, dot->display_orientation_cancel_flag);
-        if (dot->display_orientation_cancel_flag)
+        if (!dot->display_orientation_cancel_flag)
         {
             br->U(1, dot->hor_flip);
             br->U(1, dot->ver_flip);
