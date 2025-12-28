@@ -1302,7 +1302,8 @@ bool H264Deserialize::DeserializePpsSyntax(H26xBinaryReader::ptr br, H264PpsSynt
             br->U(1, pps->pic_scaling_matrix_present_flag);
             if (pps->pic_scaling_matrix_present_flag)
             {
-                int32_t loopTime = ((sps->chroma_format_idc != H264ChromaFormat::MMP_H264_CHROMA_444) ? 2 : 6) * pps->transform_8x8_mode_flag;
+                // ISO 14496/10: loopTime = 6 + (transform_8x8_mode_flag ? (chroma_format_idc != 3 ? 2 : 6) : 0)
+                int32_t loopTime = 6 + (pps->transform_8x8_mode_flag ? ((sps->chroma_format_idc != H264ChromaFormat::MMP_H264_CHROMA_444) ? 2 : 6) : 0);
                 pps->pic_scaling_list_present_flag.resize(loopTime);
                 pps->ScalingList4x4.resize(6);
                 pps->UseDefaultScalingMatrix4x4Flag.resize(6);
@@ -1321,7 +1322,11 @@ bool H264Deserialize::DeserializePpsSyntax(H26xBinaryReader::ptr br, H264PpsSynt
                             }
                             if (pps->UseDefaultScalingMatrix4x4Flag[i] == 1)
                             {
-                                // TODO
+                                // Fallback to default matrices when signaled
+                                if (i < 3)
+                                    pps->ScalingList4x4[i] = Default_4x4_Intra;
+                                else
+                                    pps->ScalingList4x4[i] = Default_4x4_Inter;
                             }
                         }
                         else
@@ -1332,8 +1337,48 @@ bool H264Deserialize::DeserializePpsSyntax(H26xBinaryReader::ptr br, H264PpsSynt
                             }
                             if (pps->UseDefaultScalingMatrix8x8Flag[i] == 1)
                             {
-                                // TODO
+                                // Fallback to default matrices when signaled
+                                if ((i % 2) == 0)
+                                    pps->ScalingList8x8[i - 6] = Default_8x8_Intra;
+                                else
+                                    pps->ScalingList8x8[i - 6] = Default_8x8_Inter;
                             }
+                        }
+                    }
+                    else
+                    {
+                        // Inference rules mirror SPS: defaults for first intra/inter, otherwise copy previous.
+                        switch (i)
+                        {
+                            // 4x4
+                            case 0:
+                                pps->ScalingList4x4[i] = Default_4x4_Intra;
+                                break;
+                            case 3:
+                                pps->ScalingList4x4[i] = Default_4x4_Inter;
+                                break;
+                            case 1:
+                            case 2:
+                            case 4:
+                            case 5:
+                                pps->ScalingList4x4[i] = pps->ScalingList4x4[i - 1];
+                                break;
+                            // 8x8 (only present when transform_8x8_mode_flag == 1)
+                            case 6:
+                                pps->ScalingList8x8[i - 6] = Default_8x8_Intra;
+                                break;
+                            case 7:
+                                pps->ScalingList8x8[i - 6] = Default_8x8_Inter;
+                                break;
+                            case 8:
+                            case 9:
+                            case 10:
+                            case 11:
+                                pps->ScalingList8x8[i - 6] = pps->ScalingList8x8[(i - 6) - 2];
+                                break;
+                            default:
+                                assert(false);
+                                break;
                         }
                     }
                 }
