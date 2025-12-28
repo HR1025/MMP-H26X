@@ -73,7 +73,7 @@ static bool PictureIsSecondField(H264PictureContext::ptr picture)
     return picture->bottom_field_flag == 1;
 }
 
-static void UpdateReferenceFlag(H264PictureContext::ptr picture, uint8_t flag, bool append = true)
+static void UpdateReferenceFlag(H264PictureContext::ptr picture, uint64_t flag, bool append = true)
 {
     if (append)
     {
@@ -1108,7 +1108,7 @@ void H264SliceDecodingProcess::ModificationProcessForReferencePictureLists(H264S
             else if (modification_of_pic_nums_idc == 2)
             {
                 uint32_t long_term_pic_num = slice->rplm->modification_of_pic_nums_idcs_datas[index++].long_term_pic_num;
-                auto LongTermPicNumF = [pictures, MaxPicNum, picture](uint32_t cIdx) -> uint32_t
+                auto LongTermPicNumF = [pictures, picture](uint32_t cIdx) -> uint32_t
                 {
                     for (auto _picture : pictures)
                     {
@@ -1277,7 +1277,9 @@ void H264SliceDecodingProcess::SequenceOfOperationsForDecodedReferencePictureMar
             AdaptiveMemoryControlDecodedReferencePicutreMarkingPorcess(slice, pictures, picture);
         }
     }
-    if (slice->slice_type != H264SliceType::MMP_H264_I_SLICE && !(picture->referenceFlag & H264PictureContext::used_for_long_term_reference))
+    // Any reference picture (nal_ref_idc != 0) that is not long-term shall be marked as short-term reference,
+    // regardless of slice type (I/P/B). FFmpeg does this.
+    if (!(picture->referenceFlag & H264PictureContext::used_for_long_term_reference))
     {
         UpdateReferenceFlag(picture, H264PictureContext::used_for_short_term_reference, false);
     }
@@ -1335,11 +1337,21 @@ void H264SliceDecodingProcess::SlidingWindowDecodedReferencePictureMarkingProces
             int64_t minFrameNumWrap = INT64_MAX;
             for (auto& _picture : pictures)
             {
+                // Sliding window removes the "oldest short-term reference picture" only.
+                // Do not consider long-term refs, non-refs, or the current picture being decoded.
+                if (!(_picture->referenceFlag & H264PictureContext::used_for_short_term_reference))
+                    continue;
+                if (_picture == picture)
+                    continue;
                 if (_picture->FrameNumWrap < minFrameNumWrap)
                 {
                     minFrameNumWrap = _picture->FrameNumWrap;
                     __picture = _picture;
                 }
+            }
+            if (!__picture)
+            {
+                return;
             }
             MPP_H264_SD_LOG("[DRPM] Mark short term picture to unsued FrameNum(%d) FrameNumWrap(%lld)", __picture->FrameNum, __picture->FrameNumWrap);
             UpdateReferenceFlag(__picture, H264PictureContext::unused_for_reference, false);
@@ -1436,7 +1448,8 @@ void H264SliceDecodingProcess::AdaptiveMemoryControlDecodedReferencePicutreMarki
                 uint32_t long_term_frame_idx = slice->drpm->memory_management_control_operations_datas[index++].long_term_frame_idx;
                 int32_t picNumX = GetPicNumX(slice, difference_of_pic_nums_minus1);
                 MPP_H264_SD_LOG("[MM] mmco(%d) difference_of_pic_nums_minus1(%d) long_term_frame_idx(%d) picNumX(%d)", memory_management_control_operation, difference_of_pic_nums_minus1, long_term_frame_idx, picNumX);
-                UnMarkUsedForReference(pictures, picture->long_term_frame_idx);
+                // Unmark any existing long-term reference that uses the target long_term_frame_idx (8.2.5.4.3).
+                UnMarkUsedForReference(pictures, long_term_frame_idx);
                 MarkShortTermReferenceToLongTermReference(pictures, picNumX, long_term_frame_idx);
                 break;
             }
