@@ -1043,7 +1043,7 @@ bool H265Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
                     }
                     else if (sps->num_short_term_ref_pic_sets > 1)
                     {
-                        br->U(std::ceil(std::log2(sps->num_short_term_ref_pic_sets)), slice->short_term_ref_pic_set_idx);                        
+                        br->U((size_t)std::ceil(std::log2(sps->num_short_term_ref_pic_sets)), slice->short_term_ref_pic_set_idx);                        
                     }
                     if (sps->long_term_ref_pics_present_flag)
                     {
@@ -1063,7 +1063,7 @@ bool H265Deserialize::DeserializeSliceHeaderSyntax(H26xBinaryReader::ptr br, H26
                             {
                                 if (sps->num_long_term_ref_pics_sps > 1)
                                 {
-                                    br->U(std::ceil(std::log2(sps->num_long_term_ref_pics_sps)), slice->lt_idx_sps[i]);
+                                    br->U((size_t)std::ceil(std::log2(sps->num_long_term_ref_pics_sps)), slice->lt_idx_sps[i]);
                                 }
                             }
                             else
@@ -1695,7 +1695,7 @@ bool H265Deserialize::DeserializeRefPicListsModificationSyntax(H26xBinaryReader:
             rplm->list_entry_l0.resize(slice->num_ref_idx_l0_active_minus1 + 1);
             for (uint32_t i=0; i<=slice->num_ref_idx_l0_active_minus1; i++)
             {
-                br->U(std::ceil(std::log2(NumPicTotalCurr)), rplm->list_entry_l0[i]);
+                br->U((size_t)std::ceil(std::log2(NumPicTotalCurr)), rplm->list_entry_l0[i]);
             }
         }
         if (slice->slice_type == H265SliceType::MMP_H265_B_SLICE)
@@ -1706,7 +1706,7 @@ bool H265Deserialize::DeserializeRefPicListsModificationSyntax(H26xBinaryReader:
                 rplm->list_entry_l1.resize(slice->num_ref_idx_l1_active_minus1 + 1);
                 for (uint32_t i=0; i<=slice->num_ref_idx_l1_active_minus1; i++)
                 {
-                    br->U(std::ceil(std::log2(NumPicTotalCurr)), rplm->list_entry_l1[i]);
+                    br->U((size_t)std::ceil(std::log2(NumPicTotalCurr)), rplm->list_entry_l1[i]);
                 }
             }
         }
@@ -1764,7 +1764,7 @@ bool H265Deserialize::DeserializeSeiDecodedPictureHash(H26xBinaryReader::ptr br,
         {
             dph->picture_checksum.resize(sps->chroma_format_idc == 0 ? 1:3);
         }
-        for (uint32_t cIdx=0; cIdx<(sps->chroma_format_idc == 0 ? 1:3); cIdx++)
+        for (uint32_t cIdx=0; cIdx < (uint32_t)(sps->chroma_format_idc == 0 ? 1:3); cIdx++)
         {
             if (dph->hash_type == 0)
             {
@@ -2540,7 +2540,7 @@ bool H265Deserialize::DeserializeStRefPicSetSyntax(H26xBinaryReader::ptr br, H26
                 _contex->UsedByCurrPicS0[stRpsIdx][i] = stps->used_by_curr_pic_s0_flag[i]; // (7-65)
                 if (i == 0)
                 {
-                    _contex->DeltaPocS0[stRpsIdx][i] = -(stps->delta_poc_s0_minus1[i] + 1); // (7-67)
+                    _contex->DeltaPocS0[stRpsIdx][i] = -(stps->delta_poc_s0_minus1[i] + (uint32_t)1); // (7-67)
                 }
                 else
                 {
@@ -2728,7 +2728,7 @@ void H265Deserialize::DecodingProcessForPictureOrderCount(H265NalUnitHeaderSynta
         }
         else
         {
-            int64_t MaxPicOrderCntLsb = (int64_t)(1 << (sps->log2_max_pic_order_cnt_lsb_minus4 + 4)); // (7-8)
+            int64_t MaxPicOrderCntLsb = (int64_t)((int64_t)1 << (sps->log2_max_pic_order_cnt_lsb_minus4 + 4)); // (7-8)
             if ((slice->slice_pic_order_cnt_lsb < prevPicOrderCntLsb) &&
                 ((prevPicOrderCntLsb - slice->slice_pic_order_cnt_lsb) >= (MaxPicOrderCntLsb/2))
             )

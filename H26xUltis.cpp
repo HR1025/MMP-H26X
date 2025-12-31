@@ -221,5 +221,32 @@ void FillH264SpsContext(H264SpsSyntax::ptr sps)
     }
 }
 
+bool IsH264IdrSlice(H264NalSyntax::ptr nal)
+{
+    if (nal->nal_unit_type == H264NaluType::MMP_H264_NALU_TYPE_IDR)
+    {
+        return true;
+    }
+    else if (nal->slice && (nal->slice->slice_type == MMP_H264_I_SLICE || nal->slice->slice_type == MMP_H264_SI_SLICE))
+    {
+        return true;
+    }
+    return false;
+}
+
+uint32_t GetH264MacroblockCount(H264SpsSyntax::ptr sps)
+{
+    if (!sps)
+    {
+        return 0;
+    }
+
+    uint32_t mbWidth = sps->pic_width_in_mbs_minus1 + 1;
+    uint32_t mbHeight = (sps->pic_height_in_map_units_minus1 + 1) * (sps->frame_mbs_only_flag ? 1 : 2);
+    uint32_t numMbs = mbWidth * mbHeight;
+
+    return numMbs;
+}
+
 } // namespace Codec
 } // namespace Mmp
