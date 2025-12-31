@@ -70,6 +70,9 @@ void FillH264SpsContext(H264SpsSyntax::ptr sps);
  */
 void FillH265SpsContext(H265SpsSyntax::ptr sps);
 
+bool IsH264IdrSlice(H264NalSyntax::ptr nal);
+
+uint32_t GetH264MacroblockCount(H264SpsSyntax::ptr sps);
 
 } // namespace Codec
 } // namespace Mmp
